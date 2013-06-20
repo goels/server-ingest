@@ -1,0 +1,6 @@
+*.o
+*.d
+
+lib/
+bin/
+*objs/
