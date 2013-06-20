@@ -59,7 +59,11 @@
 
 #include <stdlib.h>
 #include "RemapImpl.h"
+#ifdef STAND_ALONE
+#include "my_ri_log.h"
+#else
 #include "ri_log.h"
+#endif
 
 log4c_category_t* remap_RILogCategory = NULL;
 #define RILOG_CATEGORY remap_RILogCategory
@@ -819,6 +823,7 @@ static void RemapDescriptorByte(RemapHandle remapHandle, unsigned char * pByte)
             RILOG_DEBUG("CA_PID=0x%04lX->0x%04X (%ld->%d) ",
                     remapHandle->pmtTemp, remapPid, remapHandle->pmtTemp,
                     remapPid);
+            (void)remapPid;
         }
         else
         {
@@ -889,6 +894,7 @@ static void RemapEntryByte(RemapHandle remapHandle, unsigned char * pByte)
                     "PMT elementary_PID           0x%04lX -> 0x%04X (%ld -> %d)\n",
                     remapHandle->pmtTemp, remapPid, remapHandle->pmtTemp,
                     remapPid);
+            (void)remapPid;
         }
         else
         {
@@ -1089,6 +1095,7 @@ static void RemapPmtBytes(RemapHandle remapHandle, const unsigned char pdeLen,
                         "PMT PCR_PID                  0x%04lX -> 0x%04X (%ld -> %d)\n",
                         remapHandle->pmtTemp, remapPid, remapHandle->pmtTemp,
                         remapPid);
+                (void)remapPid;
             }
             else
             {
