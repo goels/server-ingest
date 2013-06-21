@@ -54,90 +54,36 @@
 
 default: build
 
-include ../common.mk
 
-.PHONY: build clean purge
+.PHONY: build clean purge \
+        ifs ifs_clean ifs_purge \
+        remap remap_clean remap_purge \
 
-#
-# Directory locations
-#
-LIB_OBJDIR = ./remapobjs
-INCLUDE_DIR = ./include
-BIN_DIR     = ../bin
-LIB_DIR     = ../lib
+BUILD_TARGETS = remap ifs
+CLEAN_TARGETS = remap_clean ifs_clean
+PURGE_TARGETS = remap_purge ifs_purge
 
-#
-# Compile options
-#
-LIB_COPTS = \
-	-I/usr/include \
-	-I/usr/include/glib-2.0 \
-	-I/usr/lib/$(hardware_platform)/glib-2.0/include \
-	-I../ifs \
-	-I./ \
-	-DSTAND_ALONE \
-	$(CPPFLAGS)
+build: $(BUILD_TARGETS)
+clean: $(CLEAN_TARGETS)
+purge: $(PURGE_TARGETS)
 
-#
-# Linker options
-#
-LIB_LDOPTS = \
-	-L../bin \
-	-L../lib \
-	-lglib-2.0 \
+remap:
+	$(MAKE) --directory=remap build
 
-#
-# Source files
-#
-LIB_SOURCES = RemapImpl.c
+remap_clean:
+	$(MAKE) --directory=remap clean
 
-#
-# Intermediate files
-#
-LIB_OBJS = $(patsubst %.c,$(LIB_OBJDIR)/%.o,$(LIB_SOURCES))
+remap_purge:
+	$(MAKE) --directory=remap purge
 
-#
-# Include dependency files
-#
-LIB_DEPENDS = $(patsubst %.c,$(LIB_OBJDIR)/%.d,$(LIB_SOURCES))
 
-ifeq ($(strip $(filter clean purge,$(MAKECMDGOALS))),)
--include $(LIB_DEPENDS)
-endif
+ifs:
+	$(MAKE) --directory=ifs build
 
-#
-# Things built by this makefile
-#
-LIB = $(LIB_DIR)/libremap$(SO_SUFFIX)
+ifs_clean:
+	$(MAKE) --directory=ifs clean
 
-#
-# Build everything
-#
-build: $(LIB)
+ifs_purge:
+	$(MAKE) --directory=ifs purge
 
-#
-# Build the library from intermediate files
-#
-$(LIB): $(LIB_OBJS)
-	$(call BUILD_SHARED_LIBRARY,$(LIB_OBJS) $(LIB_LDOPTS))
 
-#
-# Compile source files into intermediate files
-#
-$(LIB_OBJDIR)/%.o: %.c $(call makefile-list)
-	$(call COMPILE,$(LIB_COPTS))
-
-#
-# Bring header file dependencies up to date
-#
-$(LIB_OBJDIR)/%.d: %.c
-	$(call BUILD_DEPENDS,$(LIB_COPTS))
-
-#
-# Clean and purge
-#
-clean:
-	$(RMTREE) $(LIB_OBJDIR)
-
-purge:
-	$(RM) $(LIB)
