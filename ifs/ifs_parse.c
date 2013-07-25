@@ -54,8 +54,8 @@
 #define _IFS_PARSE_C "$Rev: 141 $"
 
 #include <string.h>
-#include "IfsParse.h"
 
+#include "ifs_parse.h"
 #include "ifs_utils.h"
 
 static IfsIndex indexerSetting = IfsIndexerSettingDefault;

@@ -56,10 +56,8 @@
 #ifndef _IFS_FILE_H
 #define _IFS_FILE_H
 
-#include "IfsImpl.h"
+#include "ifs_impl.h"
 
-
-typedef unsigned long FileNumber;
 
 IfsReturnCode GenerateFileNames(IfsHandle ifsHandle,
         FileNumber fileNumber, char ** const pMpeg, char ** const pNdex);
@@ -72,5 +70,13 @@ IfsReturnCode IfsPathNameInfo(const char * path, const char * name,
         IfsInfo ** ppIfsInfo);
 IfsReturnCode IfsReadNdexEntryAt(IfsHandle ifsHandle, NumEntries entry);
 IfsReturnCode GetCurrentFileParameters(IfsHandle ifsHandle);
+IfsReturnCode IfsSeekToTimeImpl(IfsHandle ifsHandle, IfsDirect ifsDirect,
+        IfsClock * pIfsClock, NumPackets * pPosition);
+IfsReturnCode IfsSeekToTime(IfsHandle ifsHandle, IfsDirect ifsDirect,
+        IfsClock * pIfsClock, NumPackets * pPosition);
+IfsReturnCode IfsSeekToPacketImpl(IfsHandle ifsHandle, NumPackets virtPos,
+        IfsClock * pIfsClock);
+IfsReturnCode IfsSeekToPacket(IfsHandle ifsHandle, NumPackets virtPos,
+        IfsClock * pIfsClock);
 
 #endif

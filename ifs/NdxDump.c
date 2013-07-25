@@ -59,10 +59,11 @@
 
 #include <glib.h>
 
-#include "IfsImpl.h"
-#include "IfsParse.h"
 #include "RemapImpl.h"
 
+#include "ifs_file.h"
+#include "ifs_impl.h"
+#include "ifs_parse.h"
 #include "ifs_utils.h"
 
 #ifndef MAX_PATH

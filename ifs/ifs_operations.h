@@ -51,27 +51,71 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-// IFS Utility Function Definitions
+// Private IFS Definitions
 
-#ifndef _IFS_UTILS_H
-#define _IFS_UTILS_H "$Rev: 141 $"
+#ifndef _IFS_OPERATIONS_H
+#define _IFS_OPERATIONS_H "$Rev: 141 $"
 
-#include <glib.h>
-#include <stdio.h>
+#include "IfsIntf.h"
 
 #include "ifs_impl.h"
 
-#define IFS_UNDEFINED_BYTE ((unsigned char)-1)
+IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
+        IfsClock ifsClock, // Input, in nanoseconds
+        NumPackets numPackets, // Input
+        IfsPacket * pData // Input
+);
 
-IfsIndex IfsGetWhatAll(void);
-const char * IfsReturnCodeToString(const IfsReturnCode ifsReturnCode);
-char * IfsToSecs(const IfsClock ifsClock, char * const temp);
-char * IfsLongLongToString(ullong value, char * const temp);
-void IfsDumpInfo(const IfsInfo * const pIfsInfo);
-void IfsDumpHandle(const IfsHandle ifsHandle);
-void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
-        const IfsIndexerSetting ifsIndexerSetting);
-IfsReturnCode IfsFreeInfo(IfsInfo * pIfsInfo);
-IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, IfsInfo ** ppIfsInfo);
+IfsReturnCode IfsConvert(IfsHandle srcHandle, // Input
+        IfsHandle dstHandle, // Input (must be a writer)
+        IfsClock * pBegClock, // Input request/Output actual, in nanoseconds
+        IfsClock * pEndClock // Input request/Output actual, in nanoseconds
+);
+
+IfsReturnCode IfsAppend // Must call IfsConvert() before calling this function
+(IfsHandle srcHandle, // Input
+        IfsHandle dstHandle, // Input (must be a writer)
+        IfsClock * pEndClock // Input request/Output actual, in nanoseconds
+);
+
+IfsReturnCode IfsRead(IfsHandle ifsHandle, // Input
+        NumPackets * pNumPackets, // Input request/Output actual
+        IfsClock * pCurClock, // Output current clock value
+        IfsPacket ** ppData // Output
+);
+
+IfsReturnCode IfsReadPicture // Must call IfsSeekToTime() before calling this function
+        (IfsHandle ifsHandle, // Input
+                IfsPcr ifsPcr, // Input
+                IfsPts ifsPts, // Input
+                IfsReadType ifsReadType, // Input
+                NumPackets * pNumPackets, // Output
+                IfsPacket ** ppData, // Output
+                NumPackets * pStartPacket // Output
+);
+
+IfsReturnCode IfsReadNearestPicture // Must call IfsSeekToTime() before calling this function
+(IfsHandle ifsHandle, // Input
+        IfsPcr ifsPcr, // Input
+        IfsPts ifsPts, // Input
+        NumPackets * pNumPackets, // Output
+        IfsPacket ** ppData // Output
+);
+
+IfsReturnCode IfsReadNextPicture // Must call IfsSeekToTime() before calling this function
+(IfsHandle ifsHandle, // Input
+        IfsPcr ifsPcr, // Input
+        IfsPts ifsPts, // Input
+        NumPackets * pNumPackets, // Output
+        IfsPacket ** ppData // Output
+);
+
+IfsReturnCode IfsReadPreviousPicture // Must call IfsSeekToTime() before calling this function
+(IfsHandle ifsHandle, // Input
+        IfsPcr ifsPcr, // Input
+        IfsPts ifsPts, // Input
+        NumPackets * pNumPackets, // Output
+        IfsPacket ** ppData // Output
+);
 
 #endif

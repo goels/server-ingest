@@ -67,10 +67,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "IfsImpl.h"
 #include "RemapImpl.h"
-#include "IfsParse.h"
 
+#include "ifs_file.h"
+#include "ifs_impl.h"
+#include "ifs_operations.h"
+#include "ifs_parse.h"
 #include "ifs_utils.h"
 
 #define DEFAULT_BACKG_NAME "background.mpg"

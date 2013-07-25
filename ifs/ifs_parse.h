@@ -54,7 +54,7 @@
 #ifndef _IFS_PARSE_H
 #define _IFS_PARSE_H "$Rev: 141 $"
 
-#include "IfsImpl.h"
+#include "ifs_impl.h"
 
 IfsBoolean IfsParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
 

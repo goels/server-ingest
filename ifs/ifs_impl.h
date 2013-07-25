@@ -60,7 +60,7 @@
 #include <stdio.h>
 #include "IfsIntf.h"
 
-#include "ifs_file.h"
+typedef unsigned long FileNumber;
 
 typedef enum
 {
@@ -432,30 +432,5 @@ typedef struct IfsHandleImpl
     GStaticMutex mutex;  // TSB thread versus IFS thread protection
 
 } IfsHandleImpl;
-
-
-IfsReturnCode IfsSeekToTimeImpl // Must call GetCurrentFileParameters() before calling this function
-        (IfsHandle ifsHandle, // Input
-                IfsDirect ifsDirect, // Input  either IfsDirectBegin,
-                //        IfsDirectEnd or IfsDirectEither
-                IfsClock * pIfsClock, // Input  requested/Output actual, in nanoseconds
-                NumPackets * pPosition // Output packet position, optional, can be NULL
-        );
-
-IfsReturnCode IfsSeekToPacketImpl // Must call GetCurrentFileSizeAndCount() before calling this function
-        (IfsHandle ifsHandle, // Input
-                NumPackets virtPos, // Input desired (virtual) packet position
-                IfsClock * pIfsClock // Output clock value, optional, can be NULL
-        );
-
-IfsReturnCode IfsReadPicture // Must call IfsSeekToTime() before calling this function
-        (IfsHandle ifsHandle, // Input
-                IfsPcr ifsPcr, // Input
-                IfsPts ifsPts, // Input
-                IfsReadType ifsReadType, // Input
-                NumPackets * pNumPackets, // Output
-                IfsPacket ** ppData, // Output
-                NumPackets * pStartPacket // Output
-        );
 
 #endif

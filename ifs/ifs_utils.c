@@ -51,7 +51,7 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#define _IFS_IMPL_C "$Rev: 141 $"
+#define _IFS_UTILS_C "$Rev: 141 $"
 
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +66,9 @@
 #include "ri_log.h"
 #include "ri_config.h"
 #endif
-#include "IfsParse.h"
+
+#include "ifs_file.h"
+#include "ifs_parse.h"
 
 extern log4c_category_t * ifs_RILogCategory;
 #define RILOG_CATEGORY ifs_RILogCategory

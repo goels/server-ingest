@@ -71,7 +71,9 @@
 #include "ri_log.h"
 #include "ri_config.h"
 #endif
-#include "IfsParse.h"
+
+#include "ifs_file.h"
+#include "ifs_parse.h"
 
 extern log4c_category_t * ifs_RILogCategory;
 #define RILOG_CATEGORY ifs_RILogCategory
@@ -616,5 +618,748 @@ IfsReturnCode GetCurrentFileParameters(IfsHandle ifsHandle)
     }
 
     return ifsReturnCode;
+}
+
+IfsReturnCode IfsSeekToTimeImpl // Must call GetCurrentFileParameters() before calling this function
+(IfsHandle ifsHandle, // Input
+        IfsDirect ifsDirect, // Input  either IfsDirectBegin,
+        //        IfsDirectEnd or IfsDirectEither
+        IfsClock * pIfsClock, // Input  requested/Output actual, in nanoseconds
+        NumPackets * pPosition // Output packet position, optional, can be NULL
+)
+{
+#ifdef STAND_ALONE
+#ifdef DEBUG_SEEKS
+    char temp1[32], temp2[32], temp3[32]; // IfsToSecs only
+#else
+#ifdef DEBUG_ERROR_LOGS
+    char temp1[32], temp2[32]; // IfsToSecs only
+#endif
+#endif
+#else // not STAND_ALONE
+#ifdef DEBUG_SEEKS
+    char temp1[32], temp2[32], temp3[32]; // IfsToSecs only
+#else
+    char temp1[32], temp2[32]; // IfsToSecs only
+#endif
+#endif
+
+    IfsReturnCode ifsReturnCode = IfsReturnCodeNoErrorReported;
+    IfsClock ifsClock = *pIfsClock;
+    g_static_mutex_lock(&(ifsHandle->mutex));
+
+    if (ifsClock < ifsHandle->begClock)
+    {
+        RILOG_WARN(
+                "IfsReturnCodeSeekOutsideFile: %s < %s (begClock) in line %d of %s\n",
+                IfsToSecs(ifsClock, temp1), IfsToSecs(ifsHandle->begClock,
+                        temp2), __LINE__, __FILE__);
+        g_static_mutex_unlock(&(ifsHandle->mutex));
+        return IfsReturnCodeSeekOutsideFile;
+    }
+
+    if (ifsClock > ifsHandle->endClock)
+    {
+        RILOG_WARN(
+                "IfsReturnCodeSeekOutsideFile: %s > %s (endClock) in line %d of %s\n",
+                IfsToSecs(ifsClock, temp1), IfsToSecs(ifsHandle->endClock,
+                        temp2), __LINE__, __FILE__);
+        g_static_mutex_unlock(&(ifsHandle->mutex));
+        return IfsReturnCodeSeekOutsideFile;
+    }
+
+    for (ifsHandle->curFileNumber = ifsHandle->begFileNumber; ifsHandle->curFileNumber
+            <= ifsHandle->endFileNumber; ifsHandle->curFileNumber++)
+    {
+        IfsClock begClock;
+        IfsClock endClock;
+        struct stat statBuffer;
+
+        g_static_mutex_unlock(&(ifsHandle->mutex));
+        ifsReturnCode = IfsOpenActualFiles(ifsHandle, ifsHandle->curFileNumber,
+                "rb+");
+        g_static_mutex_lock(&(ifsHandle->mutex));
+
+        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+            break;
+
+        if (stat(ifsHandle->ndex, &statBuffer))
+        {
+            RILOG_ERROR(
+                    "IfsReturnCodeStatError: stat(%s) failed (%d) in line %d of %s\n",
+                    ifsHandle->ndex, errno, __LINE__, __FILE__);
+            ifsReturnCode = IfsReturnCodeStatError;
+            break;
+        }
+
+        ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, 0);
+        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+            break;
+
+        begClock = ifsHandle->entry.when - 1; // nanoseconds
+
+        ifsReturnCode = IfsReadNdexEntryAt(ifsHandle,
+                ((size_t) statBuffer.st_size / sizeof(IfsIndexEntry) - 1));
+        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+            break;
+
+        endClock = ifsHandle->entry.when + 1; // nanoseconds
+
+#ifdef DEBUG_SEEKS
+        RILOG_INFO("%s <= %s <= %s ?\n",
+                IfsToSecs(begClock, temp1),
+                IfsToSecs(ifsClock, temp2),
+                IfsToSecs(endClock, temp3));
+#endif
+
+        if (ifsClock <= endClock)
+        {
+            // Found the file!
+            //
+            // entry = m(x - b)
+            //
+            // x = ifsClock(nsec)
+            //
+            // b = begTime(nsec)
+            //
+            // m = rise / run
+            //   = numEntries(entries) / (endClock(nsec) - begClock(nsec))
+            //
+            // entry = [numEntries(entries) / (endClock(nsec) - begClock(nsec))][locations(nsec) - begClock(nsec)]
+            //       = numEntries(entries)[locations(nsec) - begClock(nsec)] / [(endClock(nsec) - begClock(nsec))]
+
+            llong diff;
+            NumEntries entry;
+
+            ifsHandle->maxEntry = (size_t) statBuffer.st_size
+                    / sizeof(IfsIndexEntry) - 1;
+
+            entry = (ifsClock <= begClock ? 0 : ifsHandle->maxEntry * (ifsClock
+                    - begClock) / (endClock - begClock));
+
+            ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, entry);
+            if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                break;
+
+            diff = ifsClock - ifsHandle->entry.when; // nanoseconds
+
+#ifdef DEBUG_SEEKS
+            RILOG_INFO("\nSeek to file number %3ld about entry %3ld want %s got %s diff %s\n",
+                    ifsHandle->curFileNumber,
+                    entry,
+                    IfsToSecs(ifsClock, temp1),
+                    IfsToSecs(ifsHandle->entry.when, temp2),
+                    IfsToSecs(diff, temp3));
+#endif
+
+            if (diff > 0) // scan forward for best seek position
+            {
+                while (entry < ifsHandle->maxEntry)
+                {
+                    llong temp;
+
+                    ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, ++entry);
+                    if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                        break;
+
+                    temp = ifsClock - ifsHandle->entry.when; // nanoseconds
+#ifdef DEBUG_SEEKS
+                    RILOG_INFO("                          Try entry %3ld want %s got %s diff %s\n",
+                            entry,
+                            IfsToSecs(ifsClock, temp1),
+                            IfsToSecs(ifsHandle->entry.when, temp2),
+                            IfsToSecs(temp, temp3));
+#endif
+                    if (temp >= 0)
+                    {
+                        // Must be better (or the same), keep trying (unless done)
+                        diff = temp;
+                    }
+                    else
+                    {
+                        // We are done here but which one is better?
+                        if (-temp < diff)
+                        {
+                            // The negative one is better
+                            diff = temp;
+                        }
+                        else // The old positive one was better
+                        {
+                            entry--;
+                        }
+                        break;
+                    }
+                }
+
+                if (ifsDirect == IfsDirectBegin)
+                {
+#ifdef DEBUG_SEEKS
+                    RILOG_INFO("                          Try backup\n");
+#endif
+                    while (entry)
+                    {
+                        llong temp;
+
+                        ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, --entry);
+                        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                            break;
+
+                        temp = ifsClock - ifsHandle->entry.when; // nanoseconds
+#ifdef DEBUG_SEEKS
+                        RILOG_INFO("                          Try entry %3ld want %s got %s diff %s\n",
+                                entry,
+                                IfsToSecs(ifsClock, temp1),
+                                IfsToSecs(ifsHandle->entry.when, temp2),
+                                IfsToSecs(temp, temp3));
+#endif
+                        if (temp != diff) // Moved back as far as we can go
+                        {
+                            entry++;
+                            break;
+                        }
+                    }
+                }
+            }
+            else if (diff < 0)
+            {
+                while (entry)
+                {
+                    llong temp;
+
+                    ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, --entry);
+                    if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                        break;
+
+                    temp = ifsClock - ifsHandle->entry.when; // nanoseconds
+#ifdef DEBUG_SEEKS
+                    RILOG_INFO("                          Try entry %3ld want %s got %s diff %s\n",
+                            entry,
+                            IfsToSecs(ifsClock, temp1),
+                            IfsToSecs(ifsHandle->entry.when, temp2),
+                            IfsToSecs(temp, temp3));
+#endif
+                    if (temp <= 0)
+                    {
+                        // Must be better (or the same), keep trying (unless done)
+                        diff = temp;
+                    }
+                    else
+                    {
+                        // We are done here but which one is better?
+                        if (temp < -diff)
+                        {
+                            // The positive one is better
+                            diff = temp;
+                        }
+                        else // The old negative one was better
+                        {
+                            entry++;
+                        }
+                        break;
+                    }
+                }
+
+                if (ifsDirect == IfsDirectEnd)
+                {
+#ifdef DEBUG_SEEKS
+                    RILOG_INFO("                          Try forward\n");
+#endif
+                    while (entry < ifsHandle->maxEntry)
+                    {
+                        llong temp;
+
+                        ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, ++entry);
+                        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                            break;
+
+                        temp = ifsClock - ifsHandle->entry.when; // nanoseconds
+#ifdef DEBUG_SEEKS
+                        RILOG_INFO("                          Try entry %3ld want %s got %s diff %s\n",
+                                entry,
+                                IfsToSecs(ifsClock, temp1),
+                                IfsToSecs(ifsHandle->entry.when, temp2),
+                                IfsToSecs(temp, temp3));
+#endif
+                        if (temp != diff) // Moved forward as far as we can go
+                        {
+                            entry--;
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                switch (ifsDirect)
+                {
+                case IfsDirectBegin:
+#ifdef DEBUG_SEEKS
+                    RILOG_INFO("                          Try backup\n");
+#endif
+                    while (entry)
+                    {
+                        llong temp;
+
+                        ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, --entry);
+                        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                            break;
+
+                        temp = ifsClock - ifsHandle->entry.when; // nanoseconds
+#ifdef DEBUG_SEEKS
+                        RILOG_INFO("                          Try entry %3ld want %s got %s diff %s\n",
+                                entry,
+                                IfsToSecs(ifsClock, temp1),
+                                IfsToSecs(ifsHandle->entry.when, temp2),
+                                IfsToSecs(temp, temp3));
+#endif
+                        if (temp != diff) // Moved back as far as we can go
+                        {
+                            entry++;
+                            break;
+                        }
+                    }
+                    break;
+
+                case IfsDirectEnd:
+#ifdef DEBUG_SEEKS
+                    RILOG_INFO("                          Try forward %ld\n",
+                            ifsHandle->maxEntry);
+#endif
+                    while (entry < ifsHandle->maxEntry)
+                    {
+                        llong temp;
+
+                        ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, ++entry);
+                        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                            break;
+
+                        temp = ifsClock - ifsHandle->entry.when; // nanoseconds
+#ifdef DEBUG_SEEKS
+                        RILOG_INFO("                          Try entry %3ld want %s got %s diff %s\n",
+                                entry,
+                                IfsToSecs(ifsClock, temp1),
+                                IfsToSecs(ifsHandle->entry.when, temp2),
+                                IfsToSecs(temp, temp3));
+#endif
+                        if (temp != diff) // Moved forward as far as we can go
+                        {
+                            entry--;
+                            break;
+                        }
+                    }
+                    break;
+
+                case IfsDirectEither:
+                    break;
+                }
+            }
+
+            ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, entry);
+            if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                break;
+            if (fseek(ifsHandle->pNdex, entry * sizeof(IfsIndexEntry), SEEK_SET))
+            {
+                RILOG_ERROR(
+                        "IfsReturnCodeFileSeekingError: fseek(%s, %ld, SEEK_SET) failed (%d) in line %d of %s\n",
+                        ifsHandle->ndex, entry * sizeof(IfsIndexEntry), errno,
+                        __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeFileSeekingError;
+                break;
+            }
+
+#ifdef DEBUG_SEEKS
+            RILOG_INFO("                      Best is entry %3ld want %s got %s diff %s\n",
+                    entry,
+                    IfsToSecs(ifsClock, temp1),
+                    IfsToSecs(ifsHandle->entry.when, temp2),
+                    IfsToSecs(diff, temp3));
+            RILOG_INFO("                                        when %s where %ld/%ld\n",
+                    IfsToSecs(ifsHandle->entry.when, temp1),
+                    ifsHandle->entry.realWhere,
+                    ifsHandle->entry.virtWhere);
+#endif
+
+            if (fseek(ifsHandle->pMpeg, ifsHandle->entry.realWhere
+                    * sizeof(IfsPacket), SEEK_SET))
+            {
+                RILOG_ERROR(
+                        "IfsReturnCodeFileSeekingError: fseek(%s, %ld, SEEK_SET) failed (%d) in line %d of %s\n",
+                        ifsHandle->mpeg, ifsHandle->entry.realWhere
+                                * sizeof(IfsPacket), errno, __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeFileSeekingError;
+                break;
+            }
+
+            if (stat(ifsHandle->mpeg, &statBuffer))
+            {
+                RILOG_ERROR(
+                        "IfsReturnCodeStatError: stat(%s) failed (%d) in line %d of %s\n",
+                        ifsHandle->mpeg, errno, __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeStatError;
+                break;
+            }
+
+            ifsHandle->maxPacket = (size_t) statBuffer.st_size
+                    / sizeof(IfsPacket) - 1;
+            ifsHandle->realLoc = ifsHandle->entry.realWhere;
+            ifsHandle->virtLoc = ifsHandle->entry.virtWhere;
+            ifsHandle->entryNum = entry;
+
+            *pIfsClock = ifsHandle->entry.when;
+            if (pPosition)
+                *pPosition = ifsHandle->virtLoc;
+            break;
+        }
+    }
+
+    g_static_mutex_unlock(&(ifsHandle->mutex));
+    return ifsReturnCode;
+}
+
+IfsReturnCode IfsSeekToTime(IfsHandle ifsHandle, // Input
+        IfsDirect ifsDirect, // Input  either IfsDirectBegin,
+        //        IfsDirectEnd or IfsDirectEither
+        IfsClock * pIfsClock, // Input  requested/Output actual, in nanoseconds
+        NumPackets * pPosition // Output packet position, optional, can be NULL
+)
+{
+    if (ifsHandle == NULL)
+    {
+        RILOG_ERROR(
+                "IfsReturnCodeBadInputParameter: ifsHandle == NULL in line %d of %s\n",
+                __LINE__, __FILE__);
+        return IfsReturnCodeBadInputParameter;
+    }
+
+    if ((ifsDirect != IfsDirectBegin) && (ifsDirect != IfsDirectEnd)
+            && (ifsDirect != IfsDirectEither))
+    {
+        RILOG_ERROR(
+                "IfsReturnCodeBadInputParameter: ifsDirect is not valid in line %d of %s\n",
+                __LINE__, __FILE__);
+        return IfsReturnCodeBadInputParameter;
+    }
+
+    if (pIfsClock == NULL)
+    {
+        RILOG_ERROR(
+                "IfsReturnCodeBadInputParameter: pIfsClock == NULL in line %d of %s\n",
+                __LINE__, __FILE__);
+        return IfsReturnCodeBadInputParameter;
+    }
+
+    g_static_mutex_lock(&(ifsHandle->mutex));
+
+    if ((*pIfsClock < ifsHandle->begClock)
+            || (*pIfsClock > ifsHandle->endClock))
+    {
+        IfsReturnCode ifsReturnCode = GetCurrentFileParameters(ifsHandle);
+        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+        {
+            g_static_mutex_unlock(&(ifsHandle->mutex));
+            return ifsReturnCode;
+        }
+    }
+
+    g_static_mutex_unlock(&(ifsHandle->mutex));
+    return IfsSeekToTimeImpl(ifsHandle, ifsDirect, pIfsClock, pPosition);
+}
+
+IfsReturnCode IfsSeekToPacketImpl // Must call GetCurrentFileSizeAndCount() before calling this function
+(IfsHandle ifsHandle, // Input
+        NumPackets virtPos, // Input desired (virtual) packet position
+        IfsClock * pIfsClock // Output clock value, optional, can be NULL
+)
+{
+    IfsReturnCode ifsReturnCode = IfsReturnCodeNoErrorReported;
+    NumPackets begPosition = 0;
+    NumPackets endPosition = 0;
+    NumPackets realPos; // desired (real) packet position
+    g_static_mutex_lock(&(ifsHandle->mutex));
+
+    for (ifsHandle->curFileNumber = ifsHandle->begFileNumber; ifsHandle->curFileNumber
+            <= ifsHandle->endFileNumber; ifsHandle->curFileNumber++)
+    {
+        struct stat statBuffer;
+
+        g_static_mutex_unlock(&(ifsHandle->mutex));
+        ifsReturnCode = IfsOpenActualFiles(ifsHandle, ifsHandle->curFileNumber,
+                "rb+");
+        g_static_mutex_lock(&(ifsHandle->mutex));
+
+        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+            break;
+
+        if (stat(ifsHandle->mpeg, &statBuffer))
+        {
+            RILOG_ERROR(
+                    "IfsReturnCodeStatError: stat(%s) failed (%d) in line %d of %s\n",
+                    ifsHandle->mpeg, errno, __LINE__, __FILE__);
+            ifsReturnCode = IfsReturnCodeStatError;
+            break;
+        }
+
+        ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, 0);
+        if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+            break;
+
+        begPosition = ifsHandle->entry.virtWhere - ifsHandle->entry.realWhere;
+        endPosition = begPosition + (size_t) statBuffer.st_size
+                / sizeof(IfsPacket);
+
+#ifdef DEBUG_SEEKS
+        RILOG_INFO("%ld <= %ld < %ld ?\n", begPosition, virtPos, endPosition);
+#endif
+
+        if ((begPosition <= virtPos) && (virtPos < endPosition))
+        {
+            // Found the file!
+            //
+            // Estimate the starting point for the seek into the ndex file by
+            // calculating the percentage into the mpeg file:
+            //
+            // percentage = (virtPos-begPosition) / (endPosition-begPosition)
+            //
+
+#ifdef DEBUG_SEEKS
+            char temp[32]; // IfsToSecs only
+            long realDiff;
+#endif
+            long virtDiff;
+            NumEntries entry;
+            if (stat(ifsHandle->ndex, &statBuffer))
+            {
+                RILOG_ERROR(
+                        "IfsReturnCodeStatError: stat(%s) failed (%d) in line %d of %s\n",
+                        ifsHandle->ndex, errno, __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeStatError;
+                break;
+            }
+
+            realPos = virtPos - begPosition;
+
+            ifsHandle->maxEntry = (size_t) statBuffer.st_size
+                    / sizeof(IfsIndexEntry) - 1;
+
+            entry = ifsHandle->maxEntry * realPos / (endPosition - begPosition);
+
+            ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, entry);
+            if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                break;
+
+            virtDiff = virtPos - ifsHandle->entry.virtWhere;
+#ifdef DEBUG_SEEKS
+            realDiff = realPos - ifsHandle->entry.realWhere;
+
+            RILOG_INFO("\nSeek to file number %3ld about entry %3ld want %ld/%ld got %ld/%ld diff %ld/%ld\n",
+                    ifsHandle->curFileNumber,
+                    entry,
+                    realPos,
+                    virtPos,
+                    ifsHandle->entry.realWhere,
+                    ifsHandle->entry.virtWhere,
+                    realDiff,
+                    virtDiff);
+#endif
+
+            if (virtDiff > 0) // scan forward for best seek
+            {
+                while (entry < ifsHandle->maxEntry)
+                {
+#ifdef DEBUG_SEEKS
+                    long realTemp;
+#endif
+                    long virtTemp;
+
+                    ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, ++entry);
+                    if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                        break;
+
+#ifdef DEBUG_SEEKS
+                    realTemp = realPos - ifsHandle->entry.realWhere;
+#endif
+                    virtTemp = virtPos - ifsHandle->entry.virtWhere;
+
+#ifdef DEBUG_SEEKS
+                    RILOG_INFO("                          Try entry %3ld want %ld/%ld got %ld/%ld diff %ld/%ld\n",
+                            entry,
+                            realPos,
+                            virtPos,
+                            ifsHandle->entry.realWhere,
+                            ifsHandle->entry.virtWhere,
+                            realTemp,
+                            virtTemp);
+#endif
+
+                    if (virtTemp >= 0)
+                    {
+                        // Must be better (or the same), keep trying (unless done)
+#ifdef DEBUG_SEEKS
+                        realDiff = realTemp;
+#endif
+                        virtDiff = virtTemp;
+                    }
+                    else
+                    {
+                        // We are done here but which one is better?
+                        if (-virtTemp < virtDiff)
+                        {
+                            // The negative one is better
+#ifdef DEBUG_SEEKS
+                            realDiff = realTemp;
+                            virtDiff = virtTemp;
+#endif
+                        }
+                        else // The old positive one was better
+                        {
+                            entry--;
+                        }
+                        break;
+                    }
+                }
+            }
+            else if (virtDiff < 0)
+            {
+                while (entry)
+                {
+#ifdef DEBUG_SEEKS
+                    long realTemp;
+#endif
+                    long virtTemp;
+
+                    ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, --entry);
+                    if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                        break;
+
+                    virtTemp = virtPos - ifsHandle->entry.virtWhere;
+#ifdef DEBUG_SEEKS
+                    realTemp = realPos - ifsHandle->entry.realWhere;
+
+                    RILOG_INFO("                          Try entry %3ld want %ld/%ld got %ld/%ld diff %ld/%ld\n",
+                            entry,
+                            realPos,
+                            virtPos,
+                            ifsHandle->entry.realWhere,
+                            ifsHandle->entry.virtWhere,
+                            realTemp,
+                            virtTemp);
+#endif
+
+                    if (virtTemp <= 0)
+                    {
+                        // Must be better (or the same), keep trying (unless done)
+#ifdef DEBUG_SEEKS
+                        realDiff = realTemp;
+#endif
+                        virtDiff = virtTemp;
+                    }
+                    else
+                    {
+                        // We are done here but which one is better?
+                        if (virtTemp < -virtDiff)
+                        {
+                            // The positive one is better
+#ifdef DEBUG_SEEKS
+                            realDiff = realTemp;
+                            virtDiff = virtTemp;
+#endif
+                        }
+                        else // The old negative one was better
+                        {
+                            entry++;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            ifsReturnCode = IfsReadNdexEntryAt(ifsHandle, entry);
+            if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+                break;
+            if (fseek(ifsHandle->pNdex, entry * sizeof(IfsIndexEntry), SEEK_SET))
+            {
+                RILOG_ERROR(
+                        "IfsReturnCodeFileSeekingError: fseek(%s, %ld, SEEK_SET) failed (%d) in line %d of %s\n",
+                        ifsHandle->ndex, entry * sizeof(IfsIndexEntry), errno,
+                        __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeFileSeekingError;
+                break;
+            }
+
+#ifdef DEBUG_SEEKS
+            RILOG_INFO("                      Best is entry %3ld want %ld/%ld got %ld/%ld diff %ld/%ld\n",
+                    entry,
+                    realPos,
+                    virtPos,
+                    ifsHandle->entry.realWhere,
+                    ifsHandle->entry.virtWhere,
+                    realDiff,
+                    virtDiff);
+            RILOG_INFO("                                        when %s where %ld/%ld\n",
+                    IfsToSecs(ifsHandle->entry.when, temp),
+                    ifsHandle->entry.realWhere,
+                    ifsHandle->entry.virtWhere);
+#endif
+
+            if (fseek(ifsHandle->pMpeg, realPos * sizeof(IfsPacket), SEEK_SET))
+            {
+                RILOG_ERROR(
+                        "IfsReturnCodeFileSeekingError: fseek(%s, %ld, SEEK_SET) failed (%d) in line %d of %s\n",
+                        ifsHandle->mpeg, realPos * sizeof(IfsPacket), errno,
+                        __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeFileSeekingError;
+                break;
+            }
+
+            if (stat(ifsHandle->mpeg, &statBuffer))
+            {
+                RILOG_ERROR(
+                        "IfsReturnCodeStatError: stat(%s) failed (%d) in line %d of %s\n",
+                        ifsHandle->mpeg, errno, __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeStatError;
+                break;
+            }
+
+            ifsHandle->maxPacket = (size_t) statBuffer.st_size
+                    / sizeof(IfsPacket) - 1;
+            ifsHandle->realLoc = realPos;
+            ifsHandle->virtLoc = virtPos;
+            ifsHandle->entryNum = entry;
+
+            if (pIfsClock)
+                *pIfsClock = ifsHandle->entry.when;
+            break;
+        }
+    }
+
+    // All errors come here
+    g_static_mutex_unlock(&(ifsHandle->mutex));
+
+    return ifsReturnCode;
+}
+
+IfsReturnCode IfsSeekToPacket(IfsHandle ifsHandle, // Input
+        NumPackets virtPos, // Input desired (virtual) packet position
+        IfsClock * pIfsClock // Output clock value, optional, can be NULL
+)
+{
+    IfsReturnCode ifsReturnCode;
+
+    if (ifsHandle == NULL)
+    {
+        RILOG_ERROR(
+                "IfsReturnCodeBadInputParameter: ifsHandle == NULL in line %d of %s\n",
+                __LINE__, __FILE__);
+        return IfsReturnCodeBadInputParameter;
+    }
+
+    g_static_mutex_lock(&(ifsHandle->mutex));
+    ifsReturnCode = GetCurrentFileSizeAndCount(ifsHandle);
+    g_static_mutex_unlock(&(ifsHandle->mutex));
+
+    if (ifsReturnCode != IfsReturnCodeNoErrorReported)
+        return ifsReturnCode;
+
+    return IfsSeekToPacketImpl(ifsHandle, virtPos, pIfsClock);
 }
 
