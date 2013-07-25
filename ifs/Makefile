@@ -124,16 +124,22 @@ SIM_LDOPTS = \
 #
 LIB_SOURCES = \
 	IfsParse.c \
+	ifs_file.c \
+	ifs_utils.c \
 	IfsImpl.c
 
 NDX_SOURCES = \
 	IfsParse.c \
 	IfsImpl.c \
+	ifs_file.c \
+	ifs_utils.c \
 	NdxDump.c
 
 SIM_SOURCES = \
 	IfsParse.c \
 	IfsImpl.c \
+	ifs_file.c \
+	ifs_utils.c \
 	IfsSim.c
 
 #

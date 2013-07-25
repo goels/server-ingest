@@ -56,6 +56,8 @@
 #include <string.h>
 #include "IfsParse.h"
 
+#include "ifs_utils.h"
+
 static IfsIndex indexerSetting = IfsIndexerSettingDefault;
 void SetIndexer(const IfsIndexerSetting ifsIndexerSetting)
 {

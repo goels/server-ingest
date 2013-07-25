@@ -60,7 +60,7 @@
 #include <stdio.h>
 #include "IfsIntf.h"
 
-#define IFS_UNDEFINED_BYTE ((unsigned char)-1)
+#include "ifs_file.h"
 
 typedef enum
 {
@@ -371,8 +371,6 @@ typedef struct IfsIndexEntry
 
 } IfsIndexEntry;
 
-typedef unsigned long FileNumber;
-
 typedef struct IfsHandleImpl
 {
     // The input parameters
@@ -435,12 +433,6 @@ typedef struct IfsHandleImpl
 
 } IfsHandleImpl;
 
-IfsIndex IfsGetWhatAll(void);
-void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
-        const IfsIndexerSetting ifsIndexerSetting);
-
-IfsReturnCode IfsOpenActualFiles(IfsHandle ifsHandle, FileNumber fileNumber,
-        const char * const mode);
 
 IfsReturnCode IfsSeekToTimeImpl // Must call GetCurrentFileParameters() before calling this function
         (IfsHandle ifsHandle, // Input

@@ -71,6 +71,8 @@
 #include "RemapImpl.h"
 #include "IfsParse.h"
 
+#include "ifs_utils.h"
+
 #define DEFAULT_BACKG_NAME "background.mpg"
 #define DEFAULT_PLAIN_NAME "plain.mpg"
 #define DEFAULT_INP_PATH   "../Streams"
