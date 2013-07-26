@@ -1157,16 +1157,16 @@ IfsReturnCode IfsRead(IfsHandle ifsHandle, // Input
             return IfsReturnCodeBadInputParameter;
         }
 
-        g_static_mutex_lock(&(ifsHandle->mutex));
-
         if (ppData == NULL)
         {
             RILOG_ERROR(
                     "IfsReturnCodeBadInputParameter: ppData == NULL in line %d of %s\n",
                     __LINE__, __FILE__);
-            ifsReturnCode = IfsReturnCodeBadInputParameter;
-            break;
+            *pNumPackets = 0;
+            return IfsReturnCodeBadInputParameter;
         }
+
+        g_static_mutex_lock(&(ifsHandle->mutex));
 
         if (stat(ifsHandle->mpeg, &statBuffer))
         {
