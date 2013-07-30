@@ -83,6 +83,7 @@ typedef unsigned llong IfsPcr; // PCR values
 typedef unsigned llong IfsPts; // PTS values
 
 typedef struct IfsHandleImpl * IfsHandle;
+typedef struct IfsCodecImpl IfsCodec;
 
 typedef enum
 {
@@ -143,9 +144,10 @@ typedef struct IfsInfo
     NumBytes ndexSize; // size of the NDEX file(s)
     IfsClock begClock; // in nanoseconds
     IfsClock endClock; // in nanoseconds
-    IfsPid videoPid;
-    IfsPid audioPid;
     IfsTime maxSize; // in seconds, 0 = value not used
+
+    // Video codec-specific handle params
+    IfsCodec* codec;
 
 } IfsInfo;
 

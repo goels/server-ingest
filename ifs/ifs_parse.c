@@ -75,14 +75,14 @@ static void ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
     unsigned char espBit = (bytes[0] >> 5) & 0x01;
     unsigned char what = bytes[0] & ~(1 << 5);
 
-    if (ifsHandle->oldEsp == IFS_UNDEFINED_BYTE)
+    if (IFS_CODEC(ifsHandle)->oldEsp == IFS_UNDEFINED_BYTE)
     {
-        ifsHandle->oldEsp = espBit;
+        IFS_CODEC(ifsHandle)->oldEsp = espBit;
     }
-    else if (ifsHandle->oldEsp != espBit)
+    else if (IFS_CODEC(ifsHandle)->oldEsp != espBit)
     {
         what |= (1 << 5);
-        ifsHandle->oldEsp = espBit;
+        IFS_CODEC(ifsHandle)->oldEsp = espBit;
     }
 
     ifsHandle->entry.what |= what;
@@ -96,13 +96,13 @@ static void ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
 
     if (what & IfsIndexAdaptPcreBit)
     {
-        ifsHandle->ifsPcr = (((IfsPcr) bytes[1]) << 25); // 33-25
-        ifsHandle->ifsPcr |= (((IfsPcr) bytes[2]) << 17); // 24-17
-        ifsHandle->ifsPcr |= (((IfsPcr) bytes[3]) << 9); // 16- 9
-        ifsHandle->ifsPcr |= (((IfsPcr) bytes[4]) << 1); //  8- 1
-        ifsHandle->ifsPcr |= (((IfsPcr) bytes[5]) >> 7); //     0
+        IFS_CODEC(ifsHandle)->ifsPcr = (((IfsPcr) bytes[1]) << 25); // 33-25
+        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[2]) << 17); // 24-17
+        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[3]) << 9); // 16- 9
+        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[4]) << 1); //  8- 1
+        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[5]) >> 7); //     0
 
-        ifsHandle->ifsPcr = (ifsHandle->ifsPcr * 300 + (((((IfsPcr) bytes[5])
+        IFS_CODEC(ifsHandle)->ifsPcr = (IFS_CODEC(ifsHandle)->ifsPcr * 300 + (((((IfsPcr) bytes[5])
                 & 1) << 8) | bytes[6]));
     }
 }
@@ -527,9 +527,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid6 buf[ 9]
 
-            ifsHandle->ifsPts = ((IfsPts)(bytes[i] & 0x0E)) << 29; // 32..30
-            //          RILOG_INFO(" 9 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->ifsPts>>32),
-            //                 (long)ifsHandle->ifsPts, IfsLongLongToString(ifsHandle->ifsPts));
+            IFS_CODEC(ifsHandle)->ifsPts = ((IfsPts)(bytes[i] & 0x0E)) << 29; // 32..30
+            //          RILOG_INFO(" 9 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
+            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid6;
             break;
 
@@ -542,9 +542,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid7 buf[10]
 
-            ifsHandle->ifsPts |= ((IfsPts) bytes[i]) << 22; // 29..22
-            //          RILOG_INFO("10 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->ifsPts>>32),
-            //                 (long)ifsHandle->ifsPts, IfsLongLongToString(ifsHandle->ifsPts));
+            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts) bytes[i]) << 22; // 29..22
+            //          RILOG_INFO("10 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
+            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid7;
             break;
 
@@ -558,9 +558,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid8 buf[11]
 
-            ifsHandle->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) << 14; // 21..15
-            //          RILOG_INFO("11 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->ifsPts>>32),
-            //                 (long)ifsHandle->ifsPts, IfsLongLongToString(ifsHandle->ifsPts));
+            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) << 14; // 21..15
+            //          RILOG_INFO("11 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
+            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid8;
             break;
 
@@ -574,9 +574,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid9 buf[12]
 
-            ifsHandle->ifsPts |= ((IfsPts) bytes[i]) << 7; // 14.. 7
-            //          RILOG_INFO("12 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->ifsPts>>32),
-            //                 (long)ifsHandle->ifsPts, IfsLongLongToString(ifsHandle->ifsPts));
+            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts) bytes[i]) << 7; // 14.. 7
+            //          RILOG_INFO("12 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
+            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid9;
             break;
 
@@ -590,9 +590,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 Initial buf[13]
 
-            ifsHandle->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) >> 1; // 6..0
-            //          RILOG_INFO("13 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->ifsPts>>32),
-            //                 (long)ifsHandle->ifsPts, IfsLongLongToString(ifsHandle->ifsPts));
+            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) >> 1; // 6..0
+            //          RILOG_INFO("13 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
+            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
             ifsHandle->ifsState = IfsStateInitial;
             break;
         }
@@ -612,14 +612,14 @@ static void ParsePacket(IfsHandle ifsHandle,
     const unsigned char scBits = (bytes[3] >> 6) & 0x03; // Scrambling control
 
     // Transport Priority
-    if (ifsHandle->oldTp == IFS_UNDEFINED_BYTE)
+    if (IFS_CODEC(ifsHandle)->oldTp == IFS_UNDEFINED_BYTE)
     {
-        ifsHandle->oldTp = tpBit;
+        IFS_CODEC(ifsHandle)->oldTp = tpBit;
     }
-    else if (ifsHandle->oldTp != tpBit)
+    else if (IFS_CODEC(ifsHandle)->oldTp != tpBit)
     {
         ifsHandle->entry.what |= IfsIndexHeaderTpChange;
-        ifsHandle->oldTp = tpBit;
+        IFS_CODEC(ifsHandle)->oldTp = tpBit;
     }
 
     // Payload Unit Start Indicator
@@ -629,12 +629,12 @@ static void ParsePacket(IfsHandle ifsHandle,
     }
 
     // Continuity counter
-    if ((ifsHandle->oldCc != IFS_UNDEFINED_BYTE) && (((ifsHandle->oldCc + 1)
+    if ((IFS_CODEC(ifsHandle)->oldCc != IFS_UNDEFINED_BYTE) && (((IFS_CODEC(ifsHandle)->oldCc + 1)
             & 0x0F) != ccBits))
     {
         ifsHandle->entry.what |= IfsIndexHeaderCcError;
     }
-    ifsHandle->oldCc = ccBits;
+    IFS_CODEC(ifsHandle)->oldCc = ccBits;
 
     // Payload data exists
     if (pdeBit)
@@ -649,14 +649,14 @@ static void ParsePacket(IfsHandle ifsHandle,
     }
 
     // Scrambling control
-    if (ifsHandle->oldSc == IFS_UNDEFINED_BYTE)
+    if (IFS_CODEC(ifsHandle)->oldSc == IFS_UNDEFINED_BYTE)
     {
-        ifsHandle->oldSc = scBits;
+        IFS_CODEC(ifsHandle)->oldSc = scBits;
     }
-    else if (ifsHandle->oldSc != scBits)
+    else if (IFS_CODEC(ifsHandle)->oldSc != scBits)
     {
         ifsHandle->entry.what |= IfsIndexHeaderScChange;
-        ifsHandle->oldSc = scBits;
+        IFS_CODEC(ifsHandle)->oldSc = scBits;
     }
 
     // Transport Error Indicator
@@ -693,7 +693,7 @@ IfsBoolean IfsParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
     {
         ifsHandle->entry.what = 0;
 
-        if (GetPid(pIfsPacket) == ifsHandle->videoPid)
+        if (GetPid(pIfsPacket) == IFS_CODEC(ifsHandle)->videoPid)
         {
             ParsePacket(ifsHandle, pIfsPacket->bytes);
         }
@@ -777,7 +777,7 @@ char * ParseWhat(IfsHandle ifsHandle, char * temp,
             if (dumpPcrAndPts)
             {
                 strcat(temp, "AdaptPcreBit(");
-                (void) IfsLongLongToString(ifsHandle->ifsPcr,
+                (void) IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPcr,
                         &temp[strlen(temp)]);
                 strcat(temp, ") ");
             }
@@ -853,7 +853,7 @@ char * ParseWhat(IfsHandle ifsHandle, char * temp,
                 if (dumpPcrAndPts)
                 {
                     strcat(temp, "StartVideo(");
-                    (void)IfsLongLongToString(ifsHandle->ifsPts, &temp[strlen(temp)]);
+                    (void)IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts, &temp[strlen(temp)]);
                     strcat(temp, ") ");
                 }
                 else strcat(temp, "StartVideo(PTS) ");
@@ -938,7 +938,7 @@ char * ParseWhat(IfsHandle ifsHandle, char * temp,
             if (dumpPcrAndPts)
             {
                 strcat(temp, "Pcre(");
-                (void) IfsLongLongToString(ifsHandle->ifsPcr,
+                (void) IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPcr,
                         &temp[strlen(temp)]);
                 strcat(temp, ") ");
             }
@@ -1020,7 +1020,7 @@ char * ParseWhat(IfsHandle ifsHandle, char * temp,
                 if (dumpPcrAndPts)
                 {
                     strcat(temp, "Video(");
-                    (void)IfsLongLongToString(ifsHandle->ifsPts, &temp[strlen(temp)]);
+                    (void)IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts, &temp[strlen(temp)]);
                     strcat(temp, ") ");
                 }
                 else strcat(temp, "Video(PTS) ");

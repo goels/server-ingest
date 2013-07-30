@@ -78,6 +78,7 @@
 #include "ri_config.h"
 #endif
 
+#include "ifs_impl.h"
 #include "ifs_file.h"
 #include "ifs_operations.h"
 #include "ifs_parse.h"
@@ -241,6 +242,7 @@ static IfsReturnCode IfsOpenImpl(IfsBoolean isReading, // Input  (if true then p
     // Initialize all the pointers in the IfsHandle
     g_static_mutex_init(&(ifsHandle->mutex));
 
+    ifsHandle->codec = g_try_malloc0(sizeof(IFS_CODEC_IMPL));
     // (done by g_try_malloc0) ifsHandle->path  = NULL; // current path
     // (done by g_try_malloc0) ifsHandle->name  = NULL; // current name
     // (done by g_try_malloc0) ifsHandle->both  = NULL; // current path + name
@@ -347,12 +349,12 @@ static IfsReturnCode IfsOpenImpl(IfsBoolean isReading, // Input  (if true then p
         // (done by g_try_malloc0) ifsHandle->realLoc = 0; // offset in packets
         // (done by g_try_malloc0) ifsHandle->virtLoc = 0; // offset in packets
 
-        ifsHandle->videoPid = ifsHandle->audioPid = IFS_UNDEFINED_PID;
+        IFS_CODEC(ifsHandle)->videoPid = IFS_CODEC(ifsHandle)->audioPid = IFS_UNDEFINED_PID;
 
         ifsHandle->ifsState = IfsStateInitial;
 
-        ifsHandle->oldEsp = ifsHandle->oldSc = ifsHandle->oldTp
-                = ifsHandle->oldCc = IFS_UNDEFINED_BYTE;
+        IFS_CODEC(ifsHandle)->oldEsp = IFS_CODEC(ifsHandle)->oldSc = IFS_CODEC(ifsHandle)->oldTp
+                = IFS_CODEC(ifsHandle)->oldCc = IFS_UNDEFINED_BYTE;
 
     } while (0);
 
@@ -540,8 +542,8 @@ IfsReturnCode IfsStart(IfsHandle ifsHandle, // Input (must be a writer)
         return IfsReturnCodeMustBeAnIfsWriter;
     }
 
-    ifsHandle->videoPid = videoPid;
-    ifsHandle->audioPid = audioPid;
+    IFS_CODEC(ifsHandle)->videoPid = videoPid;
+    IFS_CODEC(ifsHandle)->audioPid = audioPid;
 
     if (indexDumpMode == IfsIndexDumpModeAll)
     {
@@ -694,12 +696,12 @@ IfsReturnCode IfsStop(IfsHandle ifsHandle // Input (must be a writer)
         ifsHandle->realLoc = 0; // offset in packets
         ifsHandle->virtLoc = 0; // offset in packets
 
-        ifsHandle->videoPid = ifsHandle->audioPid = IFS_UNDEFINED_PID;
+        IFS_CODEC(ifsHandle)->videoPid = IFS_CODEC(ifsHandle)->audioPid = IFS_UNDEFINED_PID;
 
         ifsHandle->ifsState = IfsStateInitial;
 
-        ifsHandle->oldEsp = ifsHandle->oldSc = ifsHandle->oldTp
-                = ifsHandle->oldCc = IFS_UNDEFINED_BYTE;
+        IFS_CODEC(ifsHandle)->oldEsp = IFS_CODEC(ifsHandle)->oldSc = IFS_CODEC(ifsHandle)->oldTp
+                = IFS_CODEC(ifsHandle)->oldCc = IFS_UNDEFINED_BYTE;
         g_static_mutex_unlock(&(ifsHandle->mutex));
 
     } while (0);
@@ -727,6 +729,8 @@ IfsReturnCode IfsClose(IfsHandle ifsHandle // Input
         writerListRemove(ifsHandle);
     }
 
+    if (ifsHandle->codec)
+        g_free(ifsHandle->codec);// g_try_malloc in IfsOpenImpl()
     if (ifsHandle->path)
         g_free(ifsHandle->path); // g_try_malloc in IfsOpenImpl()
     if (ifsHandle->name)

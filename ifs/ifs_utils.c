@@ -232,8 +232,8 @@ void IfsDumpInfo(const IfsInfo * const pIfsInfo)
             pIfsInfo->ndexSize, temp));
     RILOG_INFO("pIfsInfo->begClock %s\n", IfsToSecs(pIfsInfo->begClock, temp));
     RILOG_INFO("pIfsInfo->endClock %s\n", IfsToSecs(pIfsInfo->endClock, temp));
-    RILOG_INFO("pIfsInfo->videoPid %d\n", pIfsInfo->videoPid);
-    RILOG_INFO("pIfsInfo->audioPid %d\n", pIfsInfo->audioPid);
+    RILOG_INFO("pIfsInfo->codec->videoPid %d\n", IFS_CODEC(pIfsInfo)->videoPid);
+    RILOG_INFO("pIfsInfo->codec->audioPid %d\n", IFS_CODEC(pIfsInfo)->audioPid);
     RILOG_INFO("pIfsInfo->maxSize  %ld\n", pIfsInfo->maxSize);
 }
 
@@ -270,17 +270,17 @@ void IfsDumpHandle(const IfsHandle ifsHandle)
             IfsFalse)); // IfsIndex
     RILOG_INFO("ifsHandle->entry.realWhere  %ld\n", ifsHandle->entry.realWhere); // NumPackets
     RILOG_INFO("ifsHandle->entry.virtWhere  %ld\n", ifsHandle->entry.virtWhere); // NumPackets
-    RILOG_INFO("ifsHandle->ifsPcr           %s\n", IfsLongLongToString //
-            (ifsHandle->ifsPcr, temp)); // IfsPcr
-    RILOG_INFO("ifsHandle->ifsPts           %s\n", IfsLongLongToString //
-            (ifsHandle->ifsPts, temp)); // IfsPts
-    RILOG_INFO("ifsHandle->videoPid         %d\n", ifsHandle->videoPid); // IfsPid
-    RILOG_INFO("ifsHandle->audioPid         %d\n", ifsHandle->audioPid); // IfsPid
+    RILOG_INFO("ifsHandle->codec->ifsPcr     %s\n", IfsLongLongToString //
+            (IFS_CODEC(ifsHandle)->ifsPcr, temp)); // IfsPcr
+    RILOG_INFO("ifsHandle->codec->ifsPts     %s\n", IfsLongLongToString //
+            (IFS_CODEC(ifsHandle)->ifsPts, temp)); // IfsPts
+    RILOG_INFO("ifsHandle->codec->videoPid         %d\n", IFS_CODEC(ifsHandle)->videoPid); // IfsPid
+    RILOG_INFO("ifsHandle->codec->audioPid         %d\n", IFS_CODEC(ifsHandle)->audioPid); // IfsPid
     RILOG_INFO("ifsHandle->ifsState         %d\n", ifsHandle->ifsState); // IfsState
-    RILOG_INFO("ifsHandle->oldEsp           %d\n", ifsHandle->oldEsp); // unsigned char
-    RILOG_INFO("ifsHandle->oldSc            %d\n", ifsHandle->oldSc); // unsigned char
-    RILOG_INFO("ifsHandle->oldTp            %d\n", ifsHandle->oldTp); // unsigned char
-    RILOG_INFO("ifsHandle->oldCc            %d\n", ifsHandle->oldCc); // unsigned char
+    RILOG_INFO("ifsHandle->codec->oldEsp    %d\n", IFS_CODEC(ifsHandle)->oldEsp); // unsigned char
+    RILOG_INFO("ifsHandle->codec->oldSc     %d\n", IFS_CODEC(ifsHandle)->oldSc); // unsigned char
+    RILOG_INFO("ifsHandle->codec->oldTp     %d\n", IFS_CODEC(ifsHandle)->oldTp); // unsigned char
+    RILOG_INFO("ifsHandle->codec->oldCc     %d\n", IFS_CODEC(ifsHandle)->oldCc); // unsigned char
     RILOG_INFO("ifsHandle->maxPacket        %ld\n", ifsHandle->maxPacket); // NumPackets
     RILOG_INFO("ifsHandle->curFileNumber    %ld\n", ifsHandle->curFileNumber); // FileNumber
     RILOG_INFO("ifsHandle->entryNum         %ld\n", ifsHandle->entryNum); // NumEntries
@@ -311,6 +311,11 @@ IfsReturnCode IfsFreeInfo(IfsInfo * pIfsInfo // Input
         return IfsReturnCodeBadInputParameter;
     }
 
+    if (pIfsInfo->codec)
+    {
+        g_free(pIfsInfo->codec);
+        pIfsInfo->codec = NULL;
+    }
     if (pIfsInfo->path)
     {
         g_free(pIfsInfo->path);
@@ -394,6 +399,7 @@ IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, // Input
             return IfsReturnCodeMemAllocationError;
         }
 
+        pIfsInfo->codec = g_try_malloc(sizeof(IfsCodecImpl)); // g_free in IfsFreeInfo()
         pIfsInfo->maxSize = ifsHandle->maxSize; // in seconds, 0 = value not used
         pIfsInfo->path = NULL; // filled in below
         pIfsInfo->name = NULL; // filled in below
@@ -403,8 +409,8 @@ IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, // Input
                 > ifsHandle->maxSize * NSEC_PER_SEC) ? ifsHandle->endClock
                 - ifsHandle->maxSize * NSEC_PER_SEC : ifsHandle->begClock);
         pIfsInfo->endClock = ifsHandle->endClock; // in nanoseconds
-        pIfsInfo->videoPid = ifsHandle->videoPid;
-        pIfsInfo->audioPid = ifsHandle->audioPid;
+        IFS_CODEC(pIfsInfo)->videoPid = IFS_CODEC(ifsHandle)->videoPid;
+        IFS_CODEC(pIfsInfo)->audioPid = IFS_CODEC(ifsHandle)->audioPid;
 
         pIfsInfo->path = g_try_malloc(pathSize); // g_free in IfsFreeInfo()
         pIfsInfo->name = g_try_malloc(nameSize); // g_free in IfsFreeInfo()
