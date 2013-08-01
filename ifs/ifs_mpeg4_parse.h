@@ -51,17 +51,15 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _IFS_PARSE_H
-#define _IFS_PARSE_H "$Rev: 141 $"
+#ifndef _IFS_MPEG4_PARSE_H
+#define _IFS_MPEG4_PARSE_H "$Rev: 141 $"
 
 #include "ifs_impl.h"
 
-IfsBoolean IfsParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+extern IfsBoolean mpeg4_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
 
-char
-        * ParseWhat(IfsHandle ifsHandle, char * temp,
+extern char * mpeg4_ParseWhat(IfsHandle ifsHandle, char * temp,
                 const IfsIndexDumpMode ifsIndexDumpMode,
-                const IfsBoolean dumpPcrAndPts);
-void SetIndexer(const IfsIndexerSetting ifsIndexerSetting);
+                const IfsBoolean flag);
 
 #endif

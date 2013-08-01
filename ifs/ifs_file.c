@@ -73,7 +73,8 @@
 #endif
 
 #include "ifs_file.h"
-#include "ifs_parse.h"
+#include "ifs_mpeg2_parse.h"
+#include "ifs_mpeg4_parse.h"
 
 extern log4c_category_t * ifs_RILogCategory;
 #define RILOG_CATEGORY ifs_RILogCategory

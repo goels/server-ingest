@@ -68,7 +68,8 @@
 #endif
 
 #include "ifs_file.h"
-#include "ifs_parse.h"
+#include "ifs_mpeg2_parse.h"
+#include "ifs_mpeg4_parse.h"
 
 extern log4c_category_t * ifs_RILogCategory;
 #define RILOG_CATEGORY ifs_RILogCategory
@@ -265,7 +266,7 @@ void IfsDumpHandle(const IfsHandle ifsHandle)
             (ifsHandle->nxtClock, temp)); // IfsClock
     RILOG_INFO("ifsHandle->entry.when       %s\n", IfsToSecs //
             (ifsHandle->entry.when, temp)); // IfsClock
-    RILOG_INFO("ifsHandle->entry.what       %s\n", ParseWhat(ifsHandle, temp, //
+    RILOG_INFO("ifsHandle->entry.what       %s\n", IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp, //
             IfsIndexDumpModeDef, //
             IfsFalse)); // IfsIndex
     RILOG_INFO("ifsHandle->entry.realWhere  %ld\n", ifsHandle->entry.realWhere); // NumPackets

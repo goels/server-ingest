@@ -63,7 +63,8 @@
 
 #include "ifs_file.h"
 #include "ifs_impl.h"
-#include "ifs_parse.h"
+#include "ifs_mpeg2_parse.h"
+#include "ifs_mpeg4_parse.h"
 #include "ifs_utils.h"
 
 #ifndef MAX_PATH
@@ -75,6 +76,7 @@ static RemapPid thePmtPid = REMAP_UNDEFINED_PID;
 static RemapPid theVideoPid = REMAP_UNDEFINED_PID;
 static IfsHandle ifsHandle;
 static IfsBoolean isAnMpegFile = IfsFalse;
+static IfsCodecType gCodecType = IfsCodecTypeError;
 
 void DumpBadCodes(void);
 void DumpBadCodes(void)
@@ -167,6 +169,8 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
 
     printf("\nNdxDump.exe, version %d, at %ld %s\n", INTF_RELEASE_VERSION, now,
             asctime(gmtime(&now)));
+    // TODO: set this with an arg!
+    gCodecType = IfsCodecTypeMpeg2;
 
     if (argc == 2)
     {
@@ -309,14 +313,22 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
 
                     rewind(pInFile);
 
-                    IfsSetMode(IfsIndexDumpModeOff, IfsIndexerSettingDefault);
-
                     if (IfsOpenWriter(".", NULL, 0, &ifsHandle)
                             != IfsReturnCodeNoErrorReported)
                     {
                         printf("Problems opening ifs writer\n");
                         return IfsTrue;
                     }
+
+                    if (IfsSetCodec(ifsHandle, gCodecType)
+                            != IfsReturnCodeNoErrorReported)
+                    {
+                        printf("Problems setting ifs codec\n");
+                        return IfsTrue;
+                    }
+
+                    IfsSetMode(IfsIndexDumpModeOff, IfsIndexerSettingDefault);
+
                     if (IfsStart(ifsHandle, theVideoPid, 0)
                             != IfsReturnCodeNoErrorReported)
                     {
@@ -651,27 +663,56 @@ static void DumpIndexes(void)
     for (i = 0; i < 64; i++)
     {
         char temp[256]; // ParseWhat
+        IfsMpeg2CodecImpl localMpeg2Codec = { 0 };
+        //IfsMpeg4CodecImpl localMpeg4Codec = { 0 };
         IfsHandleImpl tempHandleImpl;
+
+        switch (gCodecType)
+        {
+            case IfsCodecTypeMpeg1:
+            case IfsCodecTypeMpeg2:
+                tempHandleImpl.codec = (IfsCodec*)&localMpeg2Codec;
+                break;
+
+            case IfsCodecTypeMpeg4:
+                //tempHandleImpl.codec = (IfsCodec*)&localMpeg4Codec;
+                break;
+
+            default:
+                printf(
+                    "IfsReturnCodeBadInputParameter: bad CODEC line %d of %s\n",
+                    __LINE__, __FILE__);
+                return;
+        }
+
+        g_static_mutex_init(&(tempHandleImpl.mutex));
         tempHandleImpl.entry.what = ((IfsIndex) 1) << i;
+
+        if (IfsSetCodec(&tempHandleImpl, gCodecType)
+                != IfsReturnCodeNoErrorReported)
+        {
+            printf("Problems setting ifs codec\n");
+            return;
+        }
 
         if (tempHandleImpl.entry.what & IfsIndexStartPicture0)
         {
             if (iPictureCount)
             {
                 tempHandleImpl.entry.what = IfsIndexStartPicture0;
-                printf("%10ld  %s frame\n", iPictureCount, ParseWhat(
+                printf("%10ld  %s frame\n", iPictureCount, IFS_CODEC(&tempHandleImpl)->ParseWhat(
                         &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
             }
             if (pPictureCount)
             {
                 tempHandleImpl.entry.what = IfsIndexStartPicture1;
-                printf("%10ld  %s frame\n", pPictureCount, ParseWhat(
+                printf("%10ld  %s frame\n", pPictureCount, IFS_CODEC(&tempHandleImpl)->ParseWhat(
                         &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
             }
             if (bPictureCount)
             {
                 tempHandleImpl.entry.what = IfsIndexStartPicture;
-                printf("%10ld  %s frame\n", bPictureCount, ParseWhat(
+                printf("%10ld  %s frame\n", bPictureCount, IFS_CODEC(&tempHandleImpl)->ParseWhat(
                         &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
             }
         }
@@ -679,13 +720,13 @@ static void DumpIndexes(void)
         {
             if (iSequence)
             {
-                printf("%10ld%s\n", iSequence, ParseWhat(&tempHandleImpl, temp,
+                printf("%10ld%s\n", iSequence, IFS_CODEC(&tempHandleImpl)->ParseWhat(&tempHandleImpl, temp,
                         IfsIndexDumpModeDef, IfsFalse));
             }
             if (pSequence)
             {
                 tempHandleImpl.entry.what |= IfsIndexInfoProgSeq;
-                printf("%10ld%s\n", pSequence, ParseWhat(&tempHandleImpl, temp,
+                printf("%10ld%s\n", pSequence, IFS_CODEC(&tempHandleImpl)->ParseWhat(&tempHandleImpl, temp,
                         IfsIndexDumpModeDef, IfsFalse));
             }
         }
@@ -705,7 +746,7 @@ static void DumpIndexes(void)
                             | (j & 2 ? IfsIndexInfoTopFirst : 0)
                             | (j & 1 ? IfsIndexInfoRepeatFirst : 0));
 
-                    printf("%10ld%s\n", pictCodeCounts[j], ParseWhat(
+                    printf("%10ld%s\n", pictCodeCounts[j], IFS_CODEC(&tempHandleImpl)->ParseWhat(
                             &tempHandleImpl, temp, IfsIndexDumpModeDef,
                             IfsFalse));
                 }
@@ -715,13 +756,13 @@ static void DumpIndexes(void)
         {
             if (videoNonePts)
             {
-                printf("%10ld%s\n", videoNonePts, ParseWhat(&tempHandleImpl,
+                printf("%10ld%s\n", videoNonePts, IFS_CODEC(&tempHandleImpl)->ParseWhat(&tempHandleImpl,
                         temp, IfsIndexDumpModeDef, IfsFalse));
             }
             if (videoWithPts)
             {
                 tempHandleImpl.entry.what |= IfsIndexInfoContainsPts;
-                printf("%10ld%s\n", videoWithPts, ParseWhat(&tempHandleImpl,
+                printf("%10ld%s\n", videoWithPts, IFS_CODEC(&tempHandleImpl)->ParseWhat(&tempHandleImpl,
                         temp, IfsIndexDumpModeDef, IfsFalse));
             }
         }
@@ -733,7 +774,7 @@ static void DumpIndexes(void)
             // Do nothing
         }
         else if (indexCounts[i])
-            printf("%10ld%s\n", indexCounts[i], ParseWhat(&tempHandleImpl,
+            printf("%10ld%s\n", indexCounts[i], IFS_CODEC(&tempHandleImpl)->ParseWhat(&tempHandleImpl,
                     temp, IfsIndexDumpModeDef, IfsFalse));
     }
 }
@@ -772,7 +813,7 @@ int main(int argc, char *argv[])
                 char temp[256]; // ParseWhat
                 CountIndexes(ifsHandle->entry.what);
                 printf("%6ld/%6ld  %s\n", ifsHandle->entry.realWhere,
-                        ifsHandle->entry.virtWhere, ParseWhat(ifsHandle, temp,
+                        ifsHandle->entry.virtWhere, IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp,
                                 IfsIndexDumpModeDef, IfsFalse));
                 numEntries++;
 
@@ -798,7 +839,7 @@ int main(int argc, char *argv[])
                 printf("%6ld/%6ld  %s  %s\n", ifsHandle->entry.realWhere,
                         ifsHandle->entry.virtWhere, IfsToSecs(
                                 ifsHandle->entry.when, temp1),
-                        ParseWhat(ifsHandle, temp2, IfsIndexDumpModeDef,
+                        IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp2, IfsIndexDumpModeDef,
                                 IfsFalse));
                 numEntries++;
 

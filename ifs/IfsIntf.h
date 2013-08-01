@@ -60,6 +60,7 @@
 
 #define DEBUG_ALL_PES_CODES
 
+#define MAX_TRANSPORT_PACKET_SIZE 208
 #define IFS_TRANSPORT_PACKET_SIZE 188
 #define IFS_NULL_PID_VALUE        ((IfsPid)0x1FFF)
 #define IFS_UNDEFINED_PID         ((IfsPid)-1)
@@ -87,6 +88,13 @@ typedef struct IfsCodecImpl IfsCodec;
 
 typedef enum
 {
+
+    IfsIndexDumpModeOff = 0, IfsIndexDumpModeDef = 1, IfsIndexDumpModeAll = 2,
+
+} IfsIndexDumpMode;
+
+typedef enum
+{
     IfsFalse = (0 == 1), IfsTrue = (1 == 1)
 } IfsBoolean;
 
@@ -98,6 +106,15 @@ typedef enum
 // Seek to either the begin or end of the range, whichever is fastest
 
 } IfsDirect;
+
+typedef enum
+{
+    IfsCodecTypeError                 =  0,
+    IfsCodecTypeMpeg1                 =  1,
+    IfsCodecTypeMpeg2                 =  2,
+    IfsCodecTypeMpeg4                 =  4,
+
+} IfsCodecType;
 
 typedef enum
 {
@@ -153,7 +170,8 @@ typedef struct IfsInfo
 
 typedef struct IfsPacket
 {
-    unsigned char bytes[IFS_TRANSPORT_PACKET_SIZE];
+    unsigned char bytes[MAX_TRANSPORT_PACKET_SIZE];
+    NumBytes pktSize; // size of the transport packet (188, 192, 204, or 208)
 
 } IfsPacket;
 

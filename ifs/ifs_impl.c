@@ -81,7 +81,8 @@
 #include "ifs_impl.h"
 #include "ifs_file.h"
 #include "ifs_operations.h"
-#include "ifs_parse.h"
+#include "ifs_mpeg2_parse.h"
+#include "ifs_mpeg4_parse.h"
 #include "ifs_utils.h"
 
 log4c_category_t * ifs_RILogCategory = NULL;
@@ -90,6 +91,7 @@ log4c_category_t * ifs_RILogCategory = NULL;
 #define DEFAULT_IFS_CHUNK_SIZE "600"
 
 IfsIndexDumpMode indexDumpMode = IfsIndexDumpModeOff;
+IfsIndexerSetting indexerSetting = IfsIndexerSettingDefault;
 
 IfsIndex whatAll = 0;
 unsigned indexCase = 0;
@@ -105,6 +107,10 @@ static GStaticMutex writerListMutex = G_STATIC_MUTEX_INIT;
 static void writerListAdd(IfsHandle pIfsHandle);
 static void writerListRemove(IfsHandle pIfsHandle);
 
+void SetIndexer(const IfsIndexerSetting ifsIndexerSetting)
+{
+    indexerSetting = ifsIndexerSetting;
+}
 
 void IfsInit(void)
 {
@@ -705,6 +711,51 @@ IfsReturnCode IfsStop(IfsHandle ifsHandle // Input (must be a writer)
         g_static_mutex_unlock(&(ifsHandle->mutex));
 
     } while (0);
+
+    return ifsReturnCode;
+}
+
+IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
+                          IfsCodecType codecType // Input
+)
+{
+    IfsReturnCode ifsReturnCode = IfsReturnCodeNoErrorReported;
+
+    if (ifsHandle == NULL)
+    {
+        RILOG_ERROR(
+                "IfsReturnCodeBadInputParameter: ifsHandle == NULL in line %d of %s\n",
+                __LINE__, __FILE__);
+        return IfsReturnCodeBadInputParameter;
+    }
+
+    g_static_mutex_lock(&(ifsHandle->mutex));
+    ifsHandle->codecType = codecType;
+
+    switch (codecType)
+    {
+        case IfsCodecTypeMpeg1:
+        case IfsCodecTypeMpeg2:
+            IFS_CODEC(ifsHandle)->ParsePacket = mpeg2_ParsePacket;
+            IFS_CODEC(ifsHandle)->ParseWhat = mpeg2_ParseWhat;
+            break;
+
+        case IfsCodecTypeMpeg4:
+            IFS_CODEC(ifsHandle)->ParsePacket = mpeg4_ParsePacket;
+            IFS_CODEC(ifsHandle)->ParseWhat = mpeg4_ParseWhat;
+            break;
+
+        default:
+            IFS_CODEC(ifsHandle)->ParsePacket = NULL;
+            IFS_CODEC(ifsHandle)->ParseWhat = NULL;
+            RILOG_ERROR(
+                "IfsReturnCodeBadInputParameter: invalid CODEC line %d of %s\n",
+                __LINE__, __FILE__);
+            ifsReturnCode = IfsReturnCodeBadInputParameter;
+            break;
+    }
+
+    g_static_mutex_unlock(&(ifsHandle->mutex));
 
     return ifsReturnCode;
 }

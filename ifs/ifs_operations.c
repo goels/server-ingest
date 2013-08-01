@@ -75,7 +75,8 @@
 #endif
 
 #include "ifs_file.h"
-#include "ifs_parse.h"
+#include "ifs_mpeg2_parse.h"
+#include "ifs_mpeg4_parse.h"
 #include "ifs_utils.h"
 
 extern log4c_category_t * ifs_RILogCategory;
@@ -310,7 +311,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
 
     for (i = 0; i < numPackets; i++)
     {
-        if (IfsParsePacket(ifsHandle, pData + i)) // Set and test WHAT
+        if (IFS_CODEC(ifsHandle)->ParsePacket(ifsHandle, pData + i)) // Set and test WHAT
         {
             char temp[256]; // ParseWhat
 
@@ -324,7 +325,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
                         indexCase++,
                         (unsigned long)(ifsHandle->entry.what>>32),
                         (unsigned long)ifsHandle->entry.what,
-                        ParseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
+                        IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
 #else
                 RILOG_INFO("%4d  %08X = %s\n", indexCase++,
                         ifsHandle->entry.what, ParseWhat(ifsHandle, temp,
@@ -336,7 +337,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
             {
                 RILOG_TRACE("%9ld %9ld %s\n", ifsHandle->entry.realWhere, // offset in packets
                         ifsHandle->entry.virtWhere, // offset in packets
-                        ParseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
+                        IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
             }
 
             if (fwrite(&ifsHandle->entry, 1, sizeof(IfsIndexEntry),

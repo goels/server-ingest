@@ -346,6 +346,10 @@ typedef enum // next 00 next 01 next B5 next EX next 1X next 8X   else   where
 
 typedef struct IfsMpeg2CodecImpl
 {
+    IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+    char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
+                const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
+
     IfsPcr ifsPcr;
     IfsPts ifsPts;
     IfsPid videoPid;
@@ -354,6 +358,7 @@ typedef struct IfsMpeg2CodecImpl
     unsigned char oldSc;
     unsigned char oldTp;
     unsigned char oldCc;
+
 } IfsMpeg2CodecImpl;
 
 typedef struct IfsMpeg2CodecImpl IfsCodecImpl;
