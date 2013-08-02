@@ -53,8 +53,8 @@
 
 // Private IFS Definitions
 
-#ifndef _IFS_MPEG2_IMPL_H
-#define _IFS_MPEG2_IMPL_H "$Rev: 141 $"
+#ifndef _IFS_H262_IMPL_H
+#define _IFS_H262_IMPL_H "$Rev: 141 $"
 
 #include <glib.h>
 #include <stdio.h>
@@ -344,7 +344,7 @@ typedef enum // next 00 next 01 next B5 next EX next 1X next 8X   else   where
 
 } IfsState;
 
-typedef struct IfsMpeg2CodecImpl
+typedef struct IfsH262CodecImpl
 {
     IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
     char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
@@ -359,11 +359,11 @@ typedef struct IfsMpeg2CodecImpl
     unsigned char oldTp;
     unsigned char oldCc;
 
-} IfsMpeg2CodecImpl;
+} IfsH262CodecImpl;
 
-typedef struct IfsMpeg2CodecImpl IfsCodecImpl;
+typedef struct IfsH262CodecImpl IfsCodecImpl;
 
-#define IFS_CODEC(h) ((IfsMpeg2CodecImpl*)(h)->codec)
-#define IFS_CODEC_IMPL IfsMpeg2CodecImpl
+#define IFS_CODEC(h) ((IfsH262CodecImpl*)(h)->codec)
+#define IFS_CODEC_IMPL IfsH262CodecImpl
 
 #endif

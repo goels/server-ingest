@@ -51,34 +51,15 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#define _IFS_MPEG4_PARSE_C "$Rev: 141 $"
+#ifndef _IFS_H265_PARSE_H
+#define _IFS_H265_PARSE_H "$Rev: 141 $"
 
-#include <string.h>
+#include "ifs_impl.h"
 
-#include "ifs_mpeg4_parse.h"
-#include "ifs_utils.h"
+extern IfsBoolean h265_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
 
-extern IfsIndex indexerSetting;
+extern char * h265_ParseWhat(IfsHandle ifsHandle, char * temp,
+                const IfsIndexDumpMode ifsIndexDumpMode,
+                const IfsBoolean flag);
 
-IfsBoolean mpeg4_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
-{
-    ifsHandle->ifsState = IfsStateInitial;
-
-    return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
-}
-
-char * mpeg4_ParseWhat(IfsHandle ifsHandle, char * temp,
-        const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean flags)
-{
-    //IfsIndex ifsIndex = ifsHandle->entry.what;
-
-    temp[0] = 0;
-
-    if (ifsIndexDumpMode == IfsIndexDumpModeAll)
-    {
-        // TODO:
-    }
-
-    return temp;
-}
-
+#endif

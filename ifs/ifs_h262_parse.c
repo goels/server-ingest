@@ -55,7 +55,7 @@
 
 #include <string.h>
 
-#include "ifs_mpeg2_parse.h"
+#include "ifs_h262_parse.h"
 #include "ifs_utils.h"
 
 extern IfsIndex indexerSetting;
@@ -683,7 +683,7 @@ static void ParsePacket(IfsHandle ifsHandle,
     }
 }
 
-IfsBoolean mpeg2_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
+IfsBoolean h262_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 {
     if (pIfsPacket->bytes[0] == 0x47)
     {
@@ -734,7 +734,7 @@ static void DumpExt(IfsIndex ifsIndex, char * temp)
 }
 #endif
 
-char * mpeg2_ParseWhat(IfsHandle ifsHandle, char * temp,
+char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
         const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean dumpPcrAndPts)
 {
     IfsIndex ifsIndex = ifsHandle->entry.what;

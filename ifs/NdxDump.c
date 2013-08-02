@@ -63,8 +63,9 @@
 
 #include "ifs_file.h"
 #include "ifs_impl.h"
-#include "ifs_mpeg2_parse.h"
-#include "ifs_mpeg4_parse.h"
+#include "ifs_h262_parse.h"
+#include "ifs_h264_parse.h"
+#include "ifs_h265_parse.h"
 #include "ifs_utils.h"
 
 #ifndef MAX_PATH
@@ -170,7 +171,7 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
     printf("\nNdxDump.exe, version %d, at %ld %s\n", INTF_RELEASE_VERSION, now,
             asctime(gmtime(&now)));
     // TODO: set this with an arg!
-    gCodecType = IfsCodecTypeMpeg2;
+    gCodecType = IfsCodecTypeH262;
 
     if (argc == 2)
     {
@@ -663,19 +664,25 @@ static void DumpIndexes(void)
     for (i = 0; i < 64; i++)
     {
         char temp[256]; // ParseWhat
-        IfsMpeg2CodecImpl localMpeg2Codec = { 0 };
-        //IfsMpeg4CodecImpl localMpeg4Codec = { 0 };
+        IfsH262CodecImpl localH262Codec = { 0 };
+        //IfsH264CodecImpl localH264Codec = { 0 };
+        //IfsH265CodecImpl localH265Codec = { 0 };
         IfsHandleImpl tempHandleImpl;
 
         switch (gCodecType)
         {
-            case IfsCodecTypeMpeg1:
-            case IfsCodecTypeMpeg2:
-                tempHandleImpl.codec = (IfsCodec*)&localMpeg2Codec;
+            case IfsCodecTypeH261:
+            case IfsCodecTypeH262:
+            case IfsCodecTypeH263:
+                tempHandleImpl.codec = (IfsCodec*)&localH262Codec;
                 break;
 
-            case IfsCodecTypeMpeg4:
-                //tempHandleImpl.codec = (IfsCodec*)&localMpeg4Codec;
+            case IfsCodecTypeH264:
+                //tempHandleImpl.codec = (IfsCodec*)&localH264Codec;
+                break;
+
+            case IfsCodecTypeH265:
+                //tempHandleImpl.codec = (IfsCodec*)&localH265Codec;
                 break;
 
             default:

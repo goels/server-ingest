@@ -75,8 +75,9 @@
 #endif
 
 #include "ifs_file.h"
-#include "ifs_mpeg2_parse.h"
-#include "ifs_mpeg4_parse.h"
+#include "ifs_h262_parse.h"
+#include "ifs_h264_parse.h"
+#include "ifs_h265_parse.h"
 #include "ifs_utils.h"
 
 extern log4c_category_t * ifs_RILogCategory;

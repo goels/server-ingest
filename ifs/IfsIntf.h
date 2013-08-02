@@ -110,9 +110,11 @@ typedef enum
 typedef enum
 {
     IfsCodecTypeError                 =  0,
-    IfsCodecTypeMpeg1                 =  1,
-    IfsCodecTypeMpeg2                 =  2,
-    IfsCodecTypeMpeg4                 =  4,
+    IfsCodecTypeH261                  =  1,
+    IfsCodecTypeH262                  =  2,
+    IfsCodecTypeH263                  =  3,
+    IfsCodecTypeH264                  =  4,
+    IfsCodecTypeH265                  =  5,
 
 } IfsCodecType;
 

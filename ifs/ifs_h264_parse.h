@@ -51,15 +51,15 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _IFS_MPEG2_PARSE_H
-#define _IFS_MPEG2_PARSE_H "$Rev: 141 $"
+#ifndef _IFS_H264_PARSE_H
+#define _IFS_H264_PARSE_H "$Rev: 141 $"
 
 #include "ifs_impl.h"
 
-extern IfsBoolean mpeg2_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+extern IfsBoolean h264_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
 
-extern char * mpeg2_ParseWhat(IfsHandle ifsHandle, char * temp,
+extern char * h264_ParseWhat(IfsHandle ifsHandle, char * temp,
                 const IfsIndexDumpMode ifsIndexDumpMode,
-                const IfsBoolean dumpPcrAndPts);
+                const IfsBoolean flag);
 
 #endif

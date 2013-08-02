@@ -53,99 +53,49 @@
 
 // Private IFS Definitions
 
-#ifndef _IFS_IMPL_H
-#define _IFS_IMPL_H "$Rev: 141 $"
+#ifndef _IFS_H265_IMPL_H
+#define _IFS_H265_IMPL_H "$Rev: 141 $"
 
 #include <glib.h>
 #include <stdio.h>
 #include "IfsIntf.h"
-#include "ifs_h262_impl.h"
-//#include "ifs_h264_impl.h"
-//#include "ifs_h265_impl.h"
-
-typedef unsigned long FileNumber;
 
 typedef enum
 {
-    IfsReadTypePrevious = -1, IfsReadTypeNearest = 0, IfsReadTypeNext = +1,
+    IfsIndexStartAudio = 1uLL << 43, // AUDIO                     C0 - DF
+    IfsIndexStartVideo = 1uLL << 44, // VIDEO                     E0 - EF
 
-} IfsReadType;
+} IfsIndex;
 
-typedef struct IfsIndexEntry
+typedef enum
 {
-    IfsClock when; // nanoseconds
-    IfsIndex what;
-    NumPackets realWhere;
-    NumPackets virtWhere;
 
-#ifndef DEBUG_ALL_PES_CODES
-    unsigned long pad;
-#endif
+    IfsIndexerSettingVerbose =  // index all possible events
+        IfsIndexStartVideo | IfsIndexStartAudio | 0,
 
-} IfsIndexEntry;
+    IfsIndexerSettingDefault =
+        IfsIndexStartVideo | IfsIndexStartAudio | 0,
 
-typedef struct IfsHandleImpl
+} IfsIndexerSetting;
+
+
+typedef enum
+{ // ------- ------- ------- ------- ------- ------- ------- -------
+    IfsStateInitial,
+
+} IfsState;
+
+typedef struct IfsH265CodecImpl
 {
-    // The input parameters
-    char * path;
-    char * name;
+    IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+    char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
+                const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
 
-    // Current logical file information
-    NumBytes mpegSize; // current total number of MPEG bytes
-    NumBytes ndexSize; // current total number of NDEX bytes
-    char * both; // path + name
-    char * mpeg; // path + name + filename.mpg
-    char * ndex; // path + name + filename.ndx
-    FileNumber begFileNumber; // lowest file name/number
-    FileNumber endFileNumber; // highest file name/number
-    FILE * pMpeg; // current MPEG file
-    FILE * pNdex; // current NDEX file
-    NumPackets realLoc; // current real location in current file, offset in packets
-    NumPackets virtLoc; // current virtual location in current file, offset in packets
-    IfsBoolean isReading; // true if this a reader, false if it is a writer
-    IfsClock begClock; // clock at beg of recording, in nanoseconds
-    IfsClock endClock; // clock at end of recording, in nanoseconds
-    IfsClock nxtClock; // clock at next file change, in nanoseconds
+} IfsH265CodecImpl;
 
-    // Indexer settings and state
-    IfsIndexEntry entry;
-#ifdef DEBUG_ALL_PES_CODES
-    IfsIndex extWhat;
-    IfsBoolean isProgSeq;
-    long pad1;
-#endif
+typedef struct IfsH265CodecImpl IfsCodecImpl;
 
-    // Video codec-specific handle params
-    IfsCodecType codecType;
-    IfsCodec* codec;
+#define IFS_CODEC(h) ((IfsH265CodecImpl*)(h)->codec)
+#define IFS_CODEC_IMPL IfsH265CodecImpl
 
-    // Video parsing state
-    IfsState ifsState;
-
-    // Seek state, all real, no virtual numbers
-    NumPackets maxPacket;
-    FileNumber curFileNumber;
-    NumEntries entryNum;
-    NumEntries maxEntry;
-
-    // Append state, all real, no virtual numbers
-    FileNumber appendFileNumber;
-    NumPackets appendPacketNum;
-    NumEntries appendEntryNum;
-    NumPackets appendIndexShift;
-    NumPackets appendPrevFiles;
-    long pad2;
-
-    IfsTime maxSize; // in seconds, 0 = value not used
-
-    int numEmptyFreads;  // the number of times we performed an fread and got 0
-
-    GStaticMutex mutex;  // TSB thread versus IFS thread protection
-
-} IfsHandleImpl;
-
-void SetIndexer(const IfsIndexerSetting ifsIndexerSetting);
-IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
-                          IfsCodecType codecType // Input
-                          );
 #endif

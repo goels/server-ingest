@@ -51,51 +51,34 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-// Private IFS Definitions
+#define _IFS_H265_PARSE_C "$Rev: 141 $"
 
-#ifndef _IFS_MPEG4_IMPL_H
-#define _IFS_MPEG4_IMPL_H "$Rev: 141 $"
+#include <string.h>
 
-#include <glib.h>
-#include <stdio.h>
-#include "IfsIntf.h"
+#include "ifs_h265_parse.h"
+#include "ifs_utils.h"
 
-typedef enum
+extern IfsIndex indexerSetting;
+
+IfsBoolean h265_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 {
-    IfsIndexStartAudio = 1uLL << 43, // AUDIO                     C0 - DF
-    IfsIndexStartVideo = 1uLL << 44, // VIDEO                     E0 - EF
+    ifsHandle->ifsState = IfsStateInitial;
 
-} IfsIndex;
+    return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
+}
 
-typedef enum
+char * h265_ParseWhat(IfsHandle ifsHandle, char * temp,
+        const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean flags)
 {
+    //IfsIndex ifsIndex = ifsHandle->entry.what;
 
-    IfsIndexerSettingVerbose =  // index all possible events
-        IfsIndexStartVideo | IfsIndexStartAudio | 0,
+    temp[0] = 0;
 
-    IfsIndexerSettingDefault =
-        IfsIndexStartVideo | IfsIndexStartAudio | 0,
+    if (ifsIndexDumpMode == IfsIndexDumpModeAll)
+    {
+        // TODO:
+    }
 
-} IfsIndexerSetting;
+    return temp;
+}
 
-
-typedef enum
-{ // ------- ------- ------- ------- ------- ------- ------- -------
-    IfsStateInitial,
-
-} IfsState;
-
-typedef struct IfsMpeg4CodecImpl
-{
-    IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
-    char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
-                const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
-
-} IfsMpeg4CodecImpl;
-
-typedef struct IfsMpeg4CodecImpl IfsCodecImpl;
-
-#define IFS_CODEC(h) ((IfsMpeg4CodecImpl*)(h)->codec)
-#define IFS_CODEC_IMPL IfsMpeg4CodecImpl
-
-#endif

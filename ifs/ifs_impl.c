@@ -81,8 +81,9 @@
 #include "ifs_impl.h"
 #include "ifs_file.h"
 #include "ifs_operations.h"
-#include "ifs_mpeg2_parse.h"
-#include "ifs_mpeg4_parse.h"
+#include "ifs_h262_parse.h"
+#include "ifs_h264_parse.h"
+#include "ifs_h265_parse.h"
 #include "ifs_utils.h"
 
 log4c_category_t * ifs_RILogCategory = NULL;
@@ -734,15 +735,21 @@ IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
 
     switch (codecType)
     {
-        case IfsCodecTypeMpeg1:
-        case IfsCodecTypeMpeg2:
-            IFS_CODEC(ifsHandle)->ParsePacket = mpeg2_ParsePacket;
-            IFS_CODEC(ifsHandle)->ParseWhat = mpeg2_ParseWhat;
+        case IfsCodecTypeH261:
+        case IfsCodecTypeH262:
+        case IfsCodecTypeH263:
+            IFS_CODEC(ifsHandle)->ParsePacket = h262_ParsePacket;
+            IFS_CODEC(ifsHandle)->ParseWhat = h262_ParseWhat;
             break;
 
-        case IfsCodecTypeMpeg4:
-            IFS_CODEC(ifsHandle)->ParsePacket = mpeg4_ParsePacket;
-            IFS_CODEC(ifsHandle)->ParseWhat = mpeg4_ParseWhat;
+        case IfsCodecTypeH264:
+            IFS_CODEC(ifsHandle)->ParsePacket = h264_ParsePacket;
+            IFS_CODEC(ifsHandle)->ParseWhat = h264_ParseWhat;
+            break;
+
+        case IfsCodecTypeH265:
+            IFS_CODEC(ifsHandle)->ParsePacket = h265_ParsePacket;
+            IFS_CODEC(ifsHandle)->ParseWhat = h265_ParseWhat;
             break;
 
         default:

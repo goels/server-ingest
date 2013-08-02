@@ -72,8 +72,9 @@
 #include "ifs_file.h"
 #include "ifs_impl.h"
 #include "ifs_operations.h"
-#include "ifs_mpeg2_parse.h"
-#include "ifs_mpeg4_parse.h"
+#include "ifs_h262_parse.h"
+#include "ifs_h264_parse.h"
+#include "ifs_h265_parse.h"
 #include "ifs_utils.h"
 
 #define DEFAULT_BACKG_NAME "background.mpg"
