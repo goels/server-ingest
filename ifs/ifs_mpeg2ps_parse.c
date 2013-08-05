@@ -65,15 +65,13 @@
 IfsBoolean mpeg2ps_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 {
     ifsHandle->entry.what = 0;
-    ifsHandle->ifsState = IfsStateInitial;
 
     switch (ifsHandle->codecType)
     {
         case IfsCodecTypeH261:
         case IfsCodecTypeH262:
         case IfsCodecTypeH263:
-            h262_ParsePacket(ifsHandle, pIfsPacket);
-            break;
+            return h262_ParsePacket(ifsHandle, pIfsPacket);
 
         case IfsCodecTypeH264:
         case IfsCodecTypeH265:

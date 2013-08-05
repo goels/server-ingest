@@ -117,20 +117,14 @@ IfsBoolean mpeg2ts_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
             case IfsCodecTypeH261:
             case IfsCodecTypeH262:
             case IfsCodecTypeH263:
-                if (mpeg2ts_GetPid(pIfsPacket) ==
-                    ifsHandle->codec->h262->videoPid)
-                {
-                    h262_ParsePacket(ifsHandle, pIfsPacket);
-                }
+                return h262_ParsePacket(ifsHandle, pIfsPacket);
                 break;
 
             case IfsCodecTypeH264:
-                h264_ParsePacket(ifsHandle, pIfsPacket);
-                break;
+                return h264_ParsePacket(ifsHandle, pIfsPacket);
 
             case IfsCodecTypeH265:
-                h265_ParsePacket(ifsHandle, pIfsPacket);
-                break;
+                return h265_ParsePacket(ifsHandle, pIfsPacket);
 
             default:
                 printf("IfsReturnCodeBadInputParameter: "
