@@ -62,4 +62,10 @@ extern char * h265_ParseWhat(IfsHandle ifsHandle, char * temp,
                 const IfsIndexDumpMode ifsIndexDumpMode,
                 const IfsBoolean flag);
 
+extern void h265_CountIndexes(ullong ifsIndex);
+
+extern void h265_DumpIndexes(void);
+
+extern void h265_DumpHandle(IfsHandle ifsHandle);
+
 #endif

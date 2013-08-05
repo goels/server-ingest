@@ -55,10 +55,11 @@
 
 #include <string.h>
 
+#include "ifs_h262_impl.h"
 #include "ifs_h262_parse.h"
 #include "ifs_utils.h"
 
-extern IfsIndex indexerSetting;
+extern ullong indexerSetting;
 
 static IfsPid GetPid(IfsPacket * pIfsPacket)
 {
@@ -71,14 +72,14 @@ static void ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
     unsigned char espBit = (bytes[0] >> 5) & 0x01;
     unsigned char what = bytes[0] & ~(1 << 5);
 
-    if (IFS_CODEC(ifsHandle)->oldEsp == IFS_UNDEFINED_BYTE)
+    if (ifsHandle->codec->h262->oldEsp == IFS_UNDEFINED_BYTE)
     {
-        IFS_CODEC(ifsHandle)->oldEsp = espBit;
+        ifsHandle->codec->h262->oldEsp = espBit;
     }
-    else if (IFS_CODEC(ifsHandle)->oldEsp != espBit)
+    else if (ifsHandle->codec->h262->oldEsp != espBit)
     {
         what |= (1 << 5);
-        IFS_CODEC(ifsHandle)->oldEsp = espBit;
+        ifsHandle->codec->h262->oldEsp = espBit;
     }
 
     ifsHandle->entry.what |= what;
@@ -92,20 +93,20 @@ static void ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
 
     if (what & IfsIndexAdaptPcreBit)
     {
-        IFS_CODEC(ifsHandle)->ifsPcr = (((IfsPcr) bytes[1]) << 25); // 33-25
-        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[2]) << 17); // 24-17
-        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[3]) << 9); // 16- 9
-        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[4]) << 1); //  8- 1
-        IFS_CODEC(ifsHandle)->ifsPcr |= (((IfsPcr) bytes[5]) >> 7); //     0
+        ifsHandle->codec->h262->ifsPcr = (((IfsPcr) bytes[1]) << 25); // 33-25
+        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[2]) << 17); // 24-17
+        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[3]) << 9); // 16- 9
+        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[4]) << 1); //  8- 1
+        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[5]) >> 7); //     0
 
-        IFS_CODEC(ifsHandle)->ifsPcr = (IFS_CODEC(ifsHandle)->ifsPcr * 300 + (((((IfsPcr) bytes[5])
+        ifsHandle->codec->h262->ifsPcr = (ifsHandle->codec->h262->ifsPcr * 300 + (((((IfsPcr) bytes[5])
                 & 1) << 8) | bytes[6]));
     }
 }
 
 static void ParseCode(IfsHandle ifsHandle, const unsigned char code)
 {
-    IfsIndex what = 0;
+    IfsH262Index what = 0;
 
     //                                     PTS?
     //
@@ -202,7 +203,7 @@ static void ParseCode(IfsHandle ifsHandle, const unsigned char code)
 
 static void ParseExt(IfsHandle ifsHandle, const unsigned char ext)
 {
-    IfsIndex what = IfsIndexExtReserved; // 0, 6 and B-F are RESERVED
+    IfsH262Index what = IfsIndexExtReserved; // 0, 6 and B-F are RESERVED
 
     switch (ext)
     {
@@ -523,9 +524,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid6 buf[ 9]
 
-            IFS_CODEC(ifsHandle)->ifsPts = ((IfsPts)(bytes[i] & 0x0E)) << 29; // 32..30
-            //          RILOG_INFO(" 9 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
-            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
+            ifsHandle->codec->h262->ifsPts = ((IfsPts)(bytes[i] & 0x0E)) << 29; // 32..30
+            //          RILOG_INFO(" 9 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->codec->h262->ifsPts>>32),
+            //                 (long)ifsHandle->codec->h262->ifsPts, IfsLongLongToString(ifsHandle->codec->h262->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid6;
             break;
 
@@ -538,9 +539,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid7 buf[10]
 
-            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts) bytes[i]) << 22; // 29..22
-            //          RILOG_INFO("10 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
-            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
+            ifsHandle->codec->h262->ifsPts |= ((IfsPts) bytes[i]) << 22; // 29..22
+            //          RILOG_INFO("10 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->codec->h262->ifsPts>>32),
+            //                 (long)ifsHandle->codec->h262->ifsPts, IfsLongLongToString(ifsHandle->codec->h262->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid7;
             break;
 
@@ -554,9 +555,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid8 buf[11]
 
-            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) << 14; // 21..15
-            //          RILOG_INFO("11 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
-            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
+            ifsHandle->codec->h262->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) << 14; // 21..15
+            //          RILOG_INFO("11 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->codec->h262->ifsPts>>32),
+            //                 (long)ifsHandle->codec->h262->ifsPts, IfsLongLongToString(ifsHandle->codec->h262->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid8;
             break;
 
@@ -570,9 +571,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 GotVid9 buf[12]
 
-            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts) bytes[i]) << 7; // 14.. 7
-            //          RILOG_INFO("12 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
-            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
+            ifsHandle->codec->h262->ifsPts |= ((IfsPts) bytes[i]) << 7; // 14.. 7
+            //          RILOG_INFO("12 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->codec->h262->ifsPts>>32),
+            //                 (long)ifsHandle->codec->h262->ifsPts, IfsLongLongToString(ifsHandle->codec->h262->ifsPts));
             ifsHandle->ifsState = IfsStateGotVid9;
             break;
 
@@ -586,9 +587,9 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 Initial buf[13]
 
-            IFS_CODEC(ifsHandle)->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) >> 1; // 6..0
-            //          RILOG_INFO("13 0x%02X %08lX%08lX %s\n", bytes[i], (long)(IFS_CODEC(ifsHandle)->ifsPts>>32),
-            //                 (long)IFS_CODEC(ifsHandle)->ifsPts, IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts));
+            ifsHandle->codec->h262->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) >> 1; // 6..0
+            //          RILOG_INFO("13 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->codec->h262->ifsPts>>32),
+            //                 (long)ifsHandle->codec->h262->ifsPts, IfsLongLongToString(ifsHandle->codec->h262->ifsPts));
             ifsHandle->ifsState = IfsStateInitial;
             break;
         }
@@ -608,14 +609,14 @@ static void ParsePacket(IfsHandle ifsHandle,
     const unsigned char scBits = (bytes[3] >> 6) & 0x03; // Scrambling control
 
     // Transport Priority
-    if (IFS_CODEC(ifsHandle)->oldTp == IFS_UNDEFINED_BYTE)
+    if (ifsHandle->codec->h262->oldTp == IFS_UNDEFINED_BYTE)
     {
-        IFS_CODEC(ifsHandle)->oldTp = tpBit;
+        ifsHandle->codec->h262->oldTp = tpBit;
     }
-    else if (IFS_CODEC(ifsHandle)->oldTp != tpBit)
+    else if (ifsHandle->codec->h262->oldTp != tpBit)
     {
         ifsHandle->entry.what |= IfsIndexHeaderTpChange;
-        IFS_CODEC(ifsHandle)->oldTp = tpBit;
+        ifsHandle->codec->h262->oldTp = tpBit;
     }
 
     // Payload Unit Start Indicator
@@ -625,12 +626,12 @@ static void ParsePacket(IfsHandle ifsHandle,
     }
 
     // Continuity counter
-    if ((IFS_CODEC(ifsHandle)->oldCc != IFS_UNDEFINED_BYTE) && (((IFS_CODEC(ifsHandle)->oldCc + 1)
+    if ((ifsHandle->codec->h262->oldCc != IFS_UNDEFINED_BYTE) && (((ifsHandle->codec->h262->oldCc + 1)
             & 0x0F) != ccBits))
     {
         ifsHandle->entry.what |= IfsIndexHeaderCcError;
     }
-    IFS_CODEC(ifsHandle)->oldCc = ccBits;
+    ifsHandle->codec->h262->oldCc = ccBits;
 
     // Payload data exists
     if (pdeBit)
@@ -645,14 +646,14 @@ static void ParsePacket(IfsHandle ifsHandle,
     }
 
     // Scrambling control
-    if (IFS_CODEC(ifsHandle)->oldSc == IFS_UNDEFINED_BYTE)
+    if (ifsHandle->codec->h262->oldSc == IFS_UNDEFINED_BYTE)
     {
-        IFS_CODEC(ifsHandle)->oldSc = scBits;
+        ifsHandle->codec->h262->oldSc = scBits;
     }
-    else if (IFS_CODEC(ifsHandle)->oldSc != scBits)
+    else if (ifsHandle->codec->h262->oldSc != scBits)
     {
         ifsHandle->entry.what |= IfsIndexHeaderScChange;
-        IFS_CODEC(ifsHandle)->oldSc = scBits;
+        ifsHandle->codec->h262->oldSc = scBits;
     }
 
     // Transport Error Indicator
@@ -689,7 +690,7 @@ IfsBoolean h262_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
     {
         ifsHandle->entry.what = 0;
 
-        if (GetPid(pIfsPacket) == IFS_CODEC(ifsHandle)->videoPid)
+        if (GetPid(pIfsPacket) == ifsHandle->codec->h262->videoPid)
         {
             ParsePacket(ifsHandle, pIfsPacket->bytes);
         }
@@ -707,7 +708,7 @@ IfsBoolean h262_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 }
 
 #ifdef DEBUG_ALL_PES_CODES
-static void DumpExt(IfsIndex ifsIndex, char * temp)
+static void DumpExt(IfsH262Index ifsIndex, char * temp)
 {
     int extCase = ((ifsIndex & IfsIndexInfoProgSeq ? 32 : 0) |
             (ifsIndex & IfsIndexInfoStructure1 ? 16 : 0) |
@@ -737,7 +738,7 @@ static void DumpExt(IfsIndex ifsIndex, char * temp)
 char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
         const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean dumpPcrAndPts)
 {
-    IfsIndex ifsIndex = ifsHandle->entry.what;
+    IfsH262Index ifsIndex = ifsHandle->entry.what;
 
     temp[0] = 0;
 
@@ -773,7 +774,7 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
             if (dumpPcrAndPts)
             {
                 strcat(temp, "AdaptPcreBit(");
-                (void) IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPcr,
+                (void) IfsLongLongToString(ifsHandle->codec->h262->ifsPcr,
                         &temp[strlen(temp)]);
                 strcat(temp, ") ");
             }
@@ -849,7 +850,7 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
                 if (dumpPcrAndPts)
                 {
                     strcat(temp, "StartVideo(");
-                    (void)IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts, &temp[strlen(temp)]);
+                    (void)IfsLongLongToString(ifsHandle->codec->h262->ifsPts, &temp[strlen(temp)]);
                     strcat(temp, ") ");
                 }
                 else strcat(temp, "StartVideo(PTS) ");
@@ -886,7 +887,7 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
     }
     else if (ifsIndexDumpMode == IfsIndexDumpModeDef)
     {
-        ifsIndex &= indexerSetting; // Clean up the output in this mode
+        //ifsIndex &= indexerSetting; // Clean up the output in this mode
 
         switch (ifsIndex & IfsIndexStartPicture)
         {
@@ -934,7 +935,7 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
             if (dumpPcrAndPts)
             {
                 strcat(temp, "Pcre(");
-                (void) IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPcr,
+                (void) IfsLongLongToString(ifsHandle->codec->h262->ifsPcr,
                         &temp[strlen(temp)]);
                 strcat(temp, ") ");
             }
@@ -1016,7 +1017,7 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
                 if (dumpPcrAndPts)
                 {
                     strcat(temp, "Video(");
-                    (void)IfsLongLongToString(IFS_CODEC(ifsHandle)->ifsPts, &temp[strlen(temp)]);
+                    (void)IfsLongLongToString(ifsHandle->codec->h262->ifsPts, &temp[strlen(temp)]);
                     strcat(temp, ") ");
                 }
                 else strcat(temp, "Video(PTS) ");
@@ -1041,3 +1042,353 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
 
     return temp;
 }
+
+static unsigned long indexCounts[64] = { 0 };
+static unsigned long iPictureCount = 0;
+static unsigned long pPictureCount = 0;
+static unsigned long bPictureCount = 0;
+static unsigned long iSequence = 0;
+static unsigned long pSequence = 0;
+static unsigned long pictCodeCounts[64] = { 0 };
+static unsigned long videoNonePts = 0;
+static unsigned long videoWithPts = 0;
+
+void h262_CountIndexes(ullong index)
+{
+    IfsH262Index ifsIndex = (IfsH262Index)index;
+    // Special cases:
+    //
+    //  IfsIndexStartPicture
+    //
+    //  16  0000000000018000 = PdeBit   StartIpicture
+    //  17  0000000000028000 = PdeBit   StartPpicture
+    //  18  0000000000038000 = PdeBit   StartBpicture
+    //
+    //  IfsIndexExtSequence
+    //      IfsIndexInfoProgSeq
+    //
+    //  25  0000000002808000 = PdeBit   StartExtension  ExtSequence   i
+    //  26  0400000002808000 = PdeBit   StartExtension  ExtSequence   p
+    //
+    //  IfsIndexExtPictCode
+    //      IfsIndexInfoProgFrame
+    //      IfsIndexInfoStructure
+    //      IfsIndexInfoProgRep
+    //
+    //  32  0000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  0
+    //  33  0800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  1
+    //  34  1000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  2
+    //  35  1800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  3
+    //  36  2000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  4
+    //  37  2800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  5
+    //  38  3000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  6
+    //  39  3800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  7
+    //  40  4000000080808000 = PdeBit   StartExtension  ExtPictCode   iT
+    //  41  4800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  9
+    //  42  5000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 10
+    //  43  5800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 11
+    //  44  6000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 12
+    //  45  6800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 13
+    //  46  7000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 14
+    //  47  7800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 15
+    //  48  8000000080808000 = PdeBit   StartExtension  ExtPictCode   iB
+    //  49  8800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 17
+    //  50  9000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 18
+    //  51  9800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 19
+    //  52  A000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 20
+    //  53  A800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 21
+    //  54  B000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 22
+    //  55  B800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 23
+    //  56  C000000080808000 = PdeBit   StartExtension  ExtPictCode   iBT
+    //  57  C800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 25
+    //  58  D000000080808000 = PdeBit   StartExtension  ExtPictCode   iTB
+    //  59  D800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 27
+    //  60  E000000080808000 = PdeBit   StartExtension  ExtPictCode   pBT
+    //  61  E800000080808000 = PdeBit   StartExtension  ExtPictCode   pBTB
+    //  62  F000000080808000 = PdeBit   StartExtension  ExtPictCode   pTB
+    //  63  F800000080808000 = PdeBit   StartExtension  ExtPictCode   pTBT
+    //
+    //  IfsIndexStartVideo
+    //      IfsIndexInfoContainsPts
+    //
+    //  76  0000100000008000 = PdeBit   StartVideo
+    //  77  0200100000008000 = PdeBit   StartVideo(0)
+    //
+    // Normal cases:
+    //
+    //   0  0000000000000100 = BadSync
+    //   1  0000000000000200 = TpChange
+    //   2  0000000000000400 = PusiBit
+    //   3  0000000000000800 = TeiBit
+    //
+    //   4  0000000000001000 = CcError
+    //   5  0000000000002000 = ScChange
+    //   6  0000000000004000 = AfeBit
+    //  15  0000000000008000 = PdeBit
+    //
+    //   7  0000000000004001 = AfeBit   AdaptAfeeBit
+    //   8  0000000000004002 = AfeBit   AdaptTpdeBit
+    //   9  0000000000004004 = AfeBit   AdaptSpeBit
+    //  10  0000000000004008 = AfeBit   AdaptOpcreBit
+    //
+    //  11  0000000000004010 = AfeBit   AdaptPcreBit(0)
+    //  12  0000000000004020 = AfeBit   AdaptEspChange
+    //  13  0000000000004040 = AfeBit   AdaptRaiBit
+    //  14  0000000000004080 = AfeBit   AdaptDiBit
+    //
+    //  19  0000000000048000 = PdeBit   StartUserData
+    //  20  0000000000088000 = PdeBit   StartSeqHeader
+    //
+    //  21  0000000000108000 = PdeBit   StartSeqError
+    //  22  0000000000208000 = PdeBit   StartSeqEnd
+    //  23  0000000000408000 = PdeBit   StartGroup
+    //  24  0000000001808000 = PdeBit   StartExtension  ExtReserved
+    //  27  0000000004808000 = PdeBit   StartExtension  ExtDisplay
+    //  28  0000000008808000 = PdeBit   StartExtension  ExtQuantMat
+    //  29  0000000010808000 = PdeBit   StartExtension  ExtCopyright
+    //  30  0000000020808000 = PdeBit   StartExtension  ExtScalable
+    //  31  0000000040808000 = PdeBit   StartExtension  ExtPictOther
+    //
+    //  64  0000000100008000 = PdeBit   StartSlice
+    //  65  0000000200008000 = PdeBit   StartReservedB0
+    //  66  0000000400008000 = PdeBit   StartReservedB1
+    //  67  0000000800008000 = PdeBit   StartReservedB6
+    //
+    //  68  0000001000008000 = PdeBit   StartMpegEnd
+    //  69  0000002000008000 = PdeBit   StartPack
+    //  70  0000004000008000 = PdeBit   StartSysHeader
+    //  71  0000008000008000 = PdeBit   StartProgramMap
+    //
+    //  72  0000010000008000 = PdeBit   StartPrivate1
+    //  73  0000020000008000 = PdeBit   StartPadding
+    //  74  0000040000008000 = PdeBit   StartPrivate2
+    //  75  0000080000008000 = PdeBit   StartAudio
+    //
+    //  78  0000200000008000 = PdeBit   StartEcm
+    //  79  0000400000008000 = PdeBit   StartEmm
+    //  80  0000800000008000 = PdeBit   StartDsmCc
+    //
+    //  81  0001000000008000 = PdeBit   Start13522
+    //  82  0002000000008000 = PdeBit   StartItuTypeA
+    //  83  0004000000008000 = PdeBit   StartItuTypeB
+    //  84  0008000000008000 = PdeBit   StartItuTypeC
+    //
+    //  85  0010000000008000 = PdeBit   StartItuTypeD
+    //  86  0020000000008000 = PdeBit   StartItuTypeE
+    //  87  0040000000008000 = PdeBit   StartAncillary
+    //  88  0080000000008000 = PdeBit   StartRes_FA_FE
+    //
+    //  89  0100000000008000 = PdeBit   StartDirectory
+
+    int i;
+
+    for (i = 0; i < 64; i++)
+    {
+        IfsH262Index mask = ((IfsH262Index) 1) << i;
+
+        if (mask & IfsIndexStartPicture0)
+        {
+            switch (ifsIndex & IfsIndexStartPicture)
+            {
+            case IfsIndexStartPicture0:
+                iPictureCount++;
+                break;
+            case IfsIndexStartPicture1:
+                pPictureCount++;
+                break;
+            case IfsIndexStartPicture:
+                bPictureCount++;
+                break;
+            }
+        }
+        else if (mask & IfsIndexExtSequence)
+        {
+            if (ifsIndex & IfsIndexExtSequence)
+            {
+                switch (ifsIndex & IfsIndexInfoProgSeq)
+                {
+                case 0:
+                    iSequence++;
+                    break;
+                case IfsIndexInfoProgSeq:
+                    pSequence++;
+                    break;
+                }
+            }
+        }
+        else if (mask & IfsIndexExtPictCode)
+        {
+            if (ifsIndex & IfsIndexExtPictCode)
+            {
+                size_t code = ((ifsIndex & IfsIndexInfoProgSeq ? 32 : 0)
+                        | (ifsIndex & IfsIndexInfoStructure1 ? 16 : 0)
+                        | (ifsIndex & IfsIndexInfoStructure0 ? 8 : 0)
+                        | (ifsIndex & IfsIndexInfoProgFrame ? 4 : 0)
+                        | (ifsIndex & IfsIndexInfoTopFirst ? 2 : 0) | (ifsIndex
+                        & IfsIndexInfoRepeatFirst ? 1 : 0));
+                pictCodeCounts[code]++;
+            }
+        }
+        else if (mask & IfsIndexStartVideo)
+        {
+            if (ifsIndex & IfsIndexStartVideo)
+            {
+                switch (ifsIndex & IfsIndexInfoContainsPts)
+                {
+                case 0:
+                    videoNonePts++;
+                    break;
+                case IfsIndexInfoContainsPts:
+                    videoWithPts++;
+                    break;
+                }
+            }
+        }
+        else if (mask & (IfsIndexStartPicture1 | IfsIndexInfoProgSeq
+                | IfsIndexInfoProgFrame | IfsIndexInfoStructure
+                | IfsIndexInfoProgRep | IfsIndexInfoContainsPts))
+        {
+            // Do nothing
+        }
+        else if (mask & ifsIndex)
+            indexCounts[i]++;
+    }
+}
+
+void h262_DumpIndexes(void)
+{
+    int i;
+
+    printf("Occurances  Event\n");
+    printf("----------  -----\n");
+
+    for (i = 0; i < 64; i++)
+    {
+        char temp[256] = { 0 }; // ParseWhat
+        IfsH262CodecImpl localH262Codec = { 0 };
+        IfsHandleImpl tempHandleImpl;
+
+        tempHandleImpl.codec = (IfsCodec*)&localH262Codec;
+        g_static_mutex_init(&(tempHandleImpl.mutex));
+        tempHandleImpl.entry.what = ((IfsH262Index) 1) << i;
+
+        if (IfsSetCodec(&tempHandleImpl, IfsCodecTypeH262)
+                != IfsReturnCodeNoErrorReported)
+        {
+            printf("Problems setting ifs codec\n");
+            return;
+        }
+
+        if (tempHandleImpl.entry.what & IfsIndexStartPicture0)
+        {
+            if (iPictureCount)
+            {
+                tempHandleImpl.entry.what = IfsIndexStartPicture0;
+                printf("%10ld  %s frame\n", iPictureCount,
+                    h262_ParseWhat(
+                        &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
+            }
+            if (pPictureCount)
+            {
+                tempHandleImpl.entry.what = IfsIndexStartPicture1;
+                printf("%10ld  %s frame\n", pPictureCount,
+                    h262_ParseWhat(
+                        &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
+            }
+            if (bPictureCount)
+            {
+                tempHandleImpl.entry.what = IfsIndexStartPicture;
+                printf("%10ld  %s frame\n", bPictureCount,
+                    h262_ParseWhat(
+                        &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
+            }
+        }
+        else if (tempHandleImpl.entry.what & IfsIndexExtSequence)
+        {
+            if (iSequence)
+            {
+                printf("%10ld%s\n", iSequence,
+                    h262_ParseWhat(&tempHandleImpl, temp,
+                        IfsIndexDumpModeDef, IfsFalse));
+            }
+            if (pSequence)
+            {
+                tempHandleImpl.entry.what |= IfsIndexInfoProgSeq;
+                printf("%10ld%s\n", pSequence,
+                    h262_ParseWhat(&tempHandleImpl, temp,
+                        IfsIndexDumpModeDef, IfsFalse));
+            }
+        }
+        else if (tempHandleImpl.entry.what & IfsIndexExtPictCode)
+        {
+            IfsH262Index j;
+
+            for (j = 0; j < 64; j++)
+            {
+                if (pictCodeCounts[j])
+                {
+                    tempHandleImpl.entry.what = (IfsIndexExtPictCode
+                            | (j & 32 ? IfsIndexInfoProgSeq : 0)
+                            | (j & 16 ? IfsIndexInfoStructure1 : 0)
+                            | (j & 8 ? IfsIndexInfoStructure0 : 0)
+                            | (j & 4 ? IfsIndexInfoProgFrame : 0)
+                            | (j & 2 ? IfsIndexInfoTopFirst : 0)
+                            | (j & 1 ? IfsIndexInfoRepeatFirst : 0));
+
+                    printf("%10ld%s\n", pictCodeCounts[j],
+                        h262_ParseWhat(
+                            &tempHandleImpl, temp, IfsIndexDumpModeDef,
+                            IfsFalse));
+                }
+            }
+        }
+        else if (tempHandleImpl.entry.what & IfsIndexStartVideo)
+        {
+            if (videoNonePts)
+            {
+                printf("%10ld%s\n", videoNonePts,
+                    h262_ParseWhat(&tempHandleImpl,
+                        temp, IfsIndexDumpModeDef, IfsFalse));
+            }
+            if (videoWithPts)
+            {
+                tempHandleImpl.entry.what |= IfsIndexInfoContainsPts;
+                printf("%10ld%s\n", videoWithPts,
+                    h262_ParseWhat(&tempHandleImpl,
+                        temp, IfsIndexDumpModeDef, IfsFalse));
+            }
+        }
+        else if (tempHandleImpl.entry.what & (IfsIndexStartPicture1
+                | IfsIndexInfoProgSeq | IfsIndexInfoProgFrame
+                | IfsIndexInfoStructure | IfsIndexInfoProgRep
+                | IfsIndexInfoContainsPts))
+        {
+            // Do nothing
+        }
+        else if (indexCounts[i])
+            printf("%10ld%s\n", indexCounts[i],
+                h262_ParseWhat(&tempHandleImpl,
+                    temp, IfsIndexDumpModeDef, IfsFalse));
+    }
+}
+
+void h262_DumpHandle(const IfsHandle ifsHandle)
+{
+    char temp[32];
+
+    printf("DUMP ifsHandle->codec->h262\n");
+    g_static_mutex_lock(&(ifsHandle->mutex));
+    printf("ifsHandle->codec->ifsPcr     %s\n", IfsLongLongToString //
+            (ifsHandle->codec->h262->ifsPcr, temp)); // IfsPcr
+    printf("ifsHandle->codec->ifsPts     %s\n", IfsLongLongToString //
+            (ifsHandle->codec->h262->ifsPts, temp)); // IfsPts
+    printf("ifsHandle->codec->videoPid         %d\n", ifsHandle->codec->h262->videoPid); // IfsPid
+    printf("ifsHandle->codec->audioPid         %d\n", ifsHandle->codec->h262->audioPid); // IfsPid
+    printf("ifsHandle->ifsState         %d\n", ifsHandle->ifsState); // IfsState
+    printf("ifsHandle->codec->oldEsp    %d\n", ifsHandle->codec->h262->oldEsp); // unsigned char
+    printf("ifsHandle->codec->oldSc     %d\n", ifsHandle->codec->h262->oldSc); // unsigned char
+    printf("ifsHandle->codec->oldTp     %d\n", ifsHandle->codec->h262->oldTp); // unsigned char
+    printf("ifsHandle->codec->oldCc     %d\n", ifsHandle->codec->h262->oldCc); // unsigned char
+    g_static_mutex_unlock(&(ifsHandle->mutex));
+}
+

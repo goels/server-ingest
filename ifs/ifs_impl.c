@@ -92,9 +92,9 @@ log4c_category_t * ifs_RILogCategory = NULL;
 #define DEFAULT_IFS_CHUNK_SIZE "600"
 
 IfsIndexDumpMode indexDumpMode = IfsIndexDumpModeOff;
-IfsIndexerSetting indexerSetting = IfsIndexerSettingDefault;
+ullong indexerSetting = 0;
 
-IfsIndex whatAll = 0;
+ullong whatAll = 0;
 unsigned indexCase = 0;
 unsigned ifsFileChunkSize;
 
@@ -108,7 +108,7 @@ static GStaticMutex writerListMutex = G_STATIC_MUTEX_INIT;
 static void writerListAdd(IfsHandle pIfsHandle);
 static void writerListRemove(IfsHandle pIfsHandle);
 
-void SetIndexer(const IfsIndexerSetting ifsIndexerSetting)
+void SetIndexer(const ullong ifsIndexerSetting)
 {
     indexerSetting = ifsIndexerSetting;
 }
@@ -249,7 +249,7 @@ static IfsReturnCode IfsOpenImpl(IfsBoolean isReading, // Input  (if true then p
     // Initialize all the pointers in the IfsHandle
     g_static_mutex_init(&(ifsHandle->mutex));
 
-    ifsHandle->codec = g_try_malloc0(sizeof(IFS_CODEC_IMPL));
+    ifsHandle->codec = g_try_malloc0(sizeof(IfsCodecImpl));
     // (done by g_try_malloc0) ifsHandle->path  = NULL; // current path
     // (done by g_try_malloc0) ifsHandle->name  = NULL; // current name
     // (done by g_try_malloc0) ifsHandle->both  = NULL; // current path + name
@@ -356,12 +356,17 @@ static IfsReturnCode IfsOpenImpl(IfsBoolean isReading, // Input  (if true then p
         // (done by g_try_malloc0) ifsHandle->realLoc = 0; // offset in packets
         // (done by g_try_malloc0) ifsHandle->virtLoc = 0; // offset in packets
 
-        IFS_CODEC(ifsHandle)->videoPid = IFS_CODEC(ifsHandle)->audioPid = IFS_UNDEFINED_PID;
+        if (ifsHandle->codecType == IfsCodecTypeH262)
+        {
+            ifsHandle->codec->h262->videoPid = IFS_UNDEFINED_PID;
+            ifsHandle->codec->h262->audioPid = IFS_UNDEFINED_PID;
+            ifsHandle->codec->h262->oldEsp = IFS_UNDEFINED_BYTE;
+            ifsHandle->codec->h262->oldSc = IFS_UNDEFINED_BYTE;
+            ifsHandle->codec->h262->oldTp = IFS_UNDEFINED_BYTE;
+            ifsHandle->codec->h262->oldCc = IFS_UNDEFINED_BYTE;
+        }
 
         ifsHandle->ifsState = IfsStateInitial;
-
-        IFS_CODEC(ifsHandle)->oldEsp = IFS_CODEC(ifsHandle)->oldSc = IFS_CODEC(ifsHandle)->oldTp
-                = IFS_CODEC(ifsHandle)->oldCc = IFS_UNDEFINED_BYTE;
 
     } while (0);
 
@@ -549,8 +554,11 @@ IfsReturnCode IfsStart(IfsHandle ifsHandle, // Input (must be a writer)
         return IfsReturnCodeMustBeAnIfsWriter;
     }
 
-    IFS_CODEC(ifsHandle)->videoPid = videoPid;
-    IFS_CODEC(ifsHandle)->audioPid = audioPid;
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        ifsHandle->codec->h262->videoPid = videoPid;
+        ifsHandle->codec->h262->audioPid = audioPid;
+    }
 
     if (indexDumpMode == IfsIndexDumpModeAll)
     {
@@ -703,15 +711,49 @@ IfsReturnCode IfsStop(IfsHandle ifsHandle // Input (must be a writer)
         ifsHandle->realLoc = 0; // offset in packets
         ifsHandle->virtLoc = 0; // offset in packets
 
-        IFS_CODEC(ifsHandle)->videoPid = IFS_CODEC(ifsHandle)->audioPid = IFS_UNDEFINED_PID;
+        if (ifsHandle->codecType == IfsCodecTypeH262)
+        {
+            ifsHandle->codec->h262->videoPid = IFS_UNDEFINED_PID;
+            ifsHandle->codec->h262->audioPid = IFS_UNDEFINED_PID;
+            ifsHandle->codec->h262->oldEsp = IFS_UNDEFINED_BYTE;
+            ifsHandle->codec->h262->oldSc = IFS_UNDEFINED_BYTE;
+            ifsHandle->codec->h262->oldTp = IFS_UNDEFINED_BYTE;
+            ifsHandle->codec->h262->oldCc = IFS_UNDEFINED_BYTE;
+        }
 
         ifsHandle->ifsState = IfsStateInitial;
 
-        IFS_CODEC(ifsHandle)->oldEsp = IFS_CODEC(ifsHandle)->oldSc = IFS_CODEC(ifsHandle)->oldTp
-                = IFS_CODEC(ifsHandle)->oldCc = IFS_UNDEFINED_BYTE;
         g_static_mutex_unlock(&(ifsHandle->mutex));
 
     } while (0);
+
+    return ifsReturnCode;
+}
+
+IfsReturnCode IfsClearCodecs(IfsHandle ifsHandle)
+{
+    IfsReturnCode ifsReturnCode = IfsReturnCodeNoErrorReported;
+
+    if (ifsHandle == NULL)
+    {
+        RILOG_ERROR("IfsReturnCodeBadInputParameter: "
+                    "ifsHandle == NULL in line %d of %s\n", __LINE__, __FILE__);
+        return IfsReturnCodeBadInputParameter;
+    }
+
+    g_static_mutex_lock(&(ifsHandle->mutex));
+    ifsHandle->codecType = 0;
+
+    if (NULL != ifsHandle->codec->h262)
+        g_free(ifsHandle->codec->h262);
+
+    if (NULL != ifsHandle->codec->h264)
+        g_free(ifsHandle->codec->h264);
+
+    if (NULL != ifsHandle->codec->h265)
+        g_free(ifsHandle->codec->h265);
+
+    g_static_mutex_unlock(&(ifsHandle->mutex));
 
     return ifsReturnCode;
 }
@@ -724,12 +766,12 @@ IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
 
     if (ifsHandle == NULL)
     {
-        RILOG_ERROR(
-                "IfsReturnCodeBadInputParameter: ifsHandle == NULL in line %d of %s\n",
-                __LINE__, __FILE__);
+        RILOG_ERROR("IfsReturnCodeBadInputParameter: "
+                    "ifsHandle == NULL in line %d of %s\n", __LINE__, __FILE__);
         return IfsReturnCodeBadInputParameter;
     }
 
+    IfsClearCodecs(ifsHandle);
     g_static_mutex_lock(&(ifsHandle->mutex));
     ifsHandle->codecType = codecType;
 
@@ -738,26 +780,38 @@ IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
         case IfsCodecTypeH261:
         case IfsCodecTypeH262:
         case IfsCodecTypeH263:
-            IFS_CODEC(ifsHandle)->ParsePacket = h262_ParsePacket;
-            IFS_CODEC(ifsHandle)->ParseWhat = h262_ParseWhat;
+            ifsHandle->codec->h262 = g_malloc0(sizeof(IfsH262CodecImpl));
+            ifsHandle->codec->h262->ParsePacket = h262_ParsePacket;
+            ifsHandle->codec->h262->ParseWhat = h262_ParseWhat;
+            ifsHandle->codec->h262->CountIndexes = h262_CountIndexes;
+            ifsHandle->codec->h262->DumpIndexes = h262_DumpIndexes;
+            ifsHandle->codec->h262->DumpHandle = h262_DumpHandle;
+            indexerSetting = IfsH262IndexerSettingDefault;
             break;
 
         case IfsCodecTypeH264:
-            IFS_CODEC(ifsHandle)->ParsePacket = h264_ParsePacket;
-            IFS_CODEC(ifsHandle)->ParseWhat = h264_ParseWhat;
+            ifsHandle->codec->h264 = g_malloc0(sizeof(IfsH264CodecImpl));
+            ifsHandle->codec->h264->ParsePacket = h264_ParsePacket;
+            ifsHandle->codec->h264->ParseWhat = h264_ParseWhat;
+            ifsHandle->codec->h264->CountIndexes = h264_CountIndexes;
+            ifsHandle->codec->h264->DumpIndexes = h264_DumpIndexes;
+            ifsHandle->codec->h264->DumpHandle = h264_DumpHandle;
+            indexerSetting = IfsH264IndexerSettingDefault;
             break;
 
         case IfsCodecTypeH265:
-            IFS_CODEC(ifsHandle)->ParsePacket = h265_ParsePacket;
-            IFS_CODEC(ifsHandle)->ParseWhat = h265_ParseWhat;
+            ifsHandle->codec->h265 = g_malloc0(sizeof(IfsH265CodecImpl));
+            ifsHandle->codec->h265->ParsePacket = h265_ParsePacket;
+            ifsHandle->codec->h265->ParseWhat = h265_ParseWhat;
+            ifsHandle->codec->h265->CountIndexes = h265_CountIndexes;
+            ifsHandle->codec->h265->DumpIndexes = h265_DumpIndexes;
+            ifsHandle->codec->h265->DumpHandle = h265_DumpHandle;
+            indexerSetting = IfsH265IndexerSettingDefault;
             break;
 
         default:
-            IFS_CODEC(ifsHandle)->ParsePacket = NULL;
-            IFS_CODEC(ifsHandle)->ParseWhat = NULL;
-            RILOG_ERROR(
-                "IfsReturnCodeBadInputParameter: invalid CODEC line %d of %s\n",
-                __LINE__, __FILE__);
+            RILOG_ERROR("IfsReturnCodeBadInputParameter: "
+                        "invalid CODEC line %d of %s\n", __LINE__, __FILE__);
             ifsReturnCode = IfsReturnCodeBadInputParameter;
             break;
     }

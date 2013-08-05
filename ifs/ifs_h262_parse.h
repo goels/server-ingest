@@ -62,4 +62,10 @@ extern char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
                 const IfsIndexDumpMode ifsIndexDumpMode,
                 const IfsBoolean dumpPcrAndPts);
 
+extern void h262_CountIndexes(ullong ifsIndex);
+
+extern void h262_DumpIndexes(void);
+
+extern void h262_DumpHandle(IfsHandle ifsHandle);
+
 #endif

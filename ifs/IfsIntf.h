@@ -84,7 +84,7 @@ typedef unsigned llong IfsPcr; // PCR values
 typedef unsigned llong IfsPts; // PTS values
 
 typedef struct IfsHandleImpl * IfsHandle;
-typedef struct IfsCodecImpl IfsCodec;
+typedef union IfsCodecImpl IfsCodec;
 
 typedef enum
 {

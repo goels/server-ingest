@@ -145,7 +145,7 @@ typedef enum
 
 #endif
 
-} IfsIndex;
+} IfsH262Index;
 
 #define IfsIndexStartPicture  (IfsIndexStartPicture0|IfsIndexStartPicture1)
 #define IfsIndexInfoStructure (IfsIndexInfoStructure0|IfsIndexInfoStructure1)
@@ -154,7 +154,7 @@ typedef enum
 typedef enum
 {
 
-    IfsIndexerSettingVerbose = // index all possible events
+    IfsH262IndexerSettingVerbose = // index all possible events
 
     // Adaptation events:
 
@@ -223,7 +223,7 @@ typedef enum
 
             0,
 
-    IfsIndexerSettingUnitest =
+    IfsH262IndexerSettingUnitest =
 
     // Adaptation events:
 
@@ -291,7 +291,7 @@ typedef enum
 
             0,
 
-    IfsIndexerSettingDefPlus = // Default plus PCR and PTS indexing
+    IfsH262IndexerSettingDefPlus = // Default plus PCR and PTS indexing
 
     IfsIndexAdaptPcreBit | IfsIndexStartPicture | IfsIndexStartSeqHeader |
 
@@ -304,13 +304,13 @@ typedef enum
 
             0,
 
-    IfsIndexerSettingDefault =
+    IfsH262IndexerSettingDefault =
 
     IfsIndexStartPicture | IfsIndexStartSeqHeader |
 
     0,
 
-} IfsIndexerSetting;
+} IfsH262IndexerSetting;
 
 
 typedef enum // next 00 next 01 next B5 next EX next 1X next 8X   else   where
@@ -342,13 +342,16 @@ typedef enum // next 00 next 01 next B5 next EX next 1X next 8X   else   where
     IfsStateGotVid9,
 //                                                 Initial buf[13]
 
-} IfsState;
+} IfsH262State;
 
 typedef struct IfsH262CodecImpl
 {
     IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
     char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
                 const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
+    void (*CountIndexes)(ullong ifsIndex);
+    void (*DumpIndexes)(void);
+    void (*DumpHandle)(IfsHandle ifsHandle);
 
     IfsPcr ifsPcr;
     IfsPts ifsPts;
@@ -361,9 +364,5 @@ typedef struct IfsH262CodecImpl
 
 } IfsH262CodecImpl;
 
-typedef struct IfsH262CodecImpl IfsCodecImpl;
-
-#define IFS_CODEC(h) ((IfsH262CodecImpl*)(h)->codec)
-#define IFS_CODEC_IMPL IfsH262CodecImpl
 
 #endif

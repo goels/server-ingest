@@ -55,10 +55,11 @@
 
 #include <string.h>
 
+#include "ifs_h264_impl.h"
 #include "ifs_h264_parse.h"
 #include "ifs_utils.h"
 
-extern IfsIndex indexerSetting;
+extern IfsH264Index indexerSetting;
 
 IfsBoolean h264_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 {
@@ -70,7 +71,7 @@ IfsBoolean h264_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 char * h264_ParseWhat(IfsHandle ifsHandle, char * temp,
         const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean flags)
 {
-    //IfsIndex ifsIndex = ifsHandle->entry.what;
+    //IfsH264Index ifsIndex = ifsHandle->entry.what;
 
     temp[0] = 0;
 
@@ -80,5 +81,69 @@ char * h264_ParseWhat(IfsHandle ifsHandle, char * temp,
     }
 
     return temp;
+}
+
+static unsigned long indexCounts[64] = { 0 };
+
+void h264_CountIndexes(ullong index)
+{
+    IfsH264Index ifsIndex = (IfsH264Index)index;
+    int i;
+
+    for (i = 0; i < 64; i++)
+    {
+        IfsH264Index mask = ((IfsH264Index) 1) << i;
+
+        // TODO: change to codec-specific counts here...
+        if (0)
+        {
+            // Do nothing
+        }
+        else if (mask & ifsIndex)
+            indexCounts[i]++;
+    }
+}
+
+void h264_DumpIndexes(void)
+{
+    int i;
+
+    printf("Occurances  Event\n");
+    printf("----------  -----\n");
+
+    for (i = 0; i < 64; i++)
+    {
+        char temp[256]; // ParseWhat
+        IfsH264CodecImpl localH264Codec = { 0 };
+        IfsHandleImpl tempHandleImpl;
+
+        tempHandleImpl.codec = (IfsCodec*)&localH264Codec;
+        g_static_mutex_init(&(tempHandleImpl.mutex));
+        tempHandleImpl.entry.what = ((IfsH264Index) 1) << i;
+
+        if (IfsSetCodec(&tempHandleImpl, IfsCodecTypeH264)
+                != IfsReturnCodeNoErrorReported)
+        {
+            printf("Problems setting ifs codec\n");
+            return;
+        }
+
+        // TODO: change to codec-specific dump here...
+        if (0)
+        {
+            // Do nothing
+        }
+        else if (indexCounts[i])
+            printf("%10ld%s\n", indexCounts[i], tempHandleImpl.codec->h264->ParseWhat(&tempHandleImpl,
+                    temp, IfsIndexDumpModeDef, IfsFalse));
+    }
+}
+
+void h264_DumpHandle(const IfsHandle ifsHandle)
+{
+    printf("DUMP ifsHandle->codec->h264\n");
+    g_static_mutex_lock(&(ifsHandle->mutex));
+    printf("ifsHandle->ifsState         %d\n", ifsHandle->ifsState); // IfsState
+    g_static_mutex_unlock(&(ifsHandle->mutex));
 }
 

@@ -59,9 +59,25 @@
 #include <glib.h>
 #include <stdio.h>
 #include "IfsIntf.h"
+
 #include "ifs_h262_impl.h"
-//#include "ifs_h264_impl.h"
-//#include "ifs_h265_impl.h"
+#include "ifs_h264_impl.h"
+#include "ifs_h265_impl.h"
+
+#define IfsIndexerSettingVerbose    0xFFFFFFFFFFFFFFFF
+
+typedef union IfsCodecImpl
+{
+    IfsH262CodecImpl* h262;
+    IfsH264CodecImpl* h264;
+    IfsH265CodecImpl* h265;
+} IfsCodecImpl;
+
+#define IFS_CODEC(h) \
+    (((h)->codecType)==IfsCodecTypeH261 || ((h)->codecType)==IfsCodecTypeH262 \
+    || ((h)->codecType)==IfsCodecTypeH263)?  (h)->codec->h262 : \
+    (((h)->codecType)==IfsCodecTypeH264? (h)->codec->h264 : (h)->codec->h265)
+
 
 typedef unsigned long FileNumber;
 
@@ -74,7 +90,7 @@ typedef enum
 typedef struct IfsIndexEntry
 {
     IfsClock when; // nanoseconds
-    IfsIndex what;
+    ullong what;
     NumPackets realWhere;
     NumPackets virtWhere;
 
@@ -110,7 +126,7 @@ typedef struct IfsHandleImpl
     // Indexer settings and state
     IfsIndexEntry entry;
 #ifdef DEBUG_ALL_PES_CODES
-    IfsIndex extWhat;
+    ullong extWhat;
     IfsBoolean isProgSeq;
     long pad1;
 #endif
@@ -120,7 +136,7 @@ typedef struct IfsHandleImpl
     IfsCodec* codec;
 
     // Video parsing state
-    IfsState ifsState;
+    int ifsState;
 
     // Seek state, all real, no virtual numbers
     NumPackets maxPacket;
@@ -144,7 +160,7 @@ typedef struct IfsHandleImpl
 
 } IfsHandleImpl;
 
-void SetIndexer(const IfsIndexerSetting ifsIndexerSetting);
+void SetIndexer(ullong ifsIndexerSetting);
 IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
                           IfsCodecType codecType // Input
                           );

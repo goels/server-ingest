@@ -62,40 +62,39 @@
 
 typedef enum
 {
-    IfsIndexStartAudio = 1uLL << 43, // AUDIO                     C0 - DF
-    IfsIndexStartVideo = 1uLL << 44, // VIDEO                     E0 - EF
+    IfsIndexStartH264Audio = 1uLL << 0,  // AUDIO
+    IfsIndexStartH264Video = 1uLL << 63, // VIDEO
 
-} IfsIndex;
+} IfsH264Index;
 
 typedef enum
 {
 
-    IfsIndexerSettingVerbose =  // index all possible events
-        IfsIndexStartVideo | IfsIndexStartAudio | 0,
+    IfsH264IndexerSettingVerbose =  // index all possible events
+        IfsIndexStartH264Video | IfsIndexStartH264Audio | 0,
 
-    IfsIndexerSettingDefault =
-        IfsIndexStartVideo | IfsIndexStartAudio | 0,
+    IfsH264IndexerSettingDefault =
+        IfsIndexStartH264Video | IfsIndexStartH264Audio | 0,
 
-} IfsIndexerSetting;
+} IfsH264IndexerSetting;
 
 
 typedef enum
 { // ------- ------- ------- ------- ------- ------- ------- -------
-    IfsStateInitial,
+    IfsH264StateInitial,
 
-} IfsState;
+} IfsH264State;
 
 typedef struct IfsH264CodecImpl
 {
     IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
     char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
                 const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
+    void (*CountIndexes)(ullong ifsIndex);
+    void (*DumpIndexes)(void);
+    void (*DumpHandle)(IfsHandle ifsHandle);
 
 } IfsH264CodecImpl;
 
-typedef struct IfsH264CodecImpl IfsCodecImpl;
-
-#define IFS_CODEC(h) ((IfsH264CodecImpl*)(h)->codec)
-#define IFS_CODEC_IMPL IfsH264CodecImpl
 
 #endif

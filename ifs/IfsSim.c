@@ -688,8 +688,12 @@ static void UnitTest100(char * saveName)                                        
     iseq(pIfsInfo->ndexSize, 0 );                                               //
     iseq(pIfsInfo->begClock, 0 );                                               //
     iseq(pIfsInfo->endClock, 0 );                                               //
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, 2 );                                               //
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, 1 );                                               //
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, 2);
+        iseq(pIfsInfo->codec->h262->audioPid, 1);
+    }
+
     isne(pIfsInfo->path , NULL);                                                //
     isne(pIfsInfo->name , NULL);                                                //
 
@@ -707,8 +711,12 @@ static void UnitTest100(char * saveName)                                        
     iseq(pIfsInfo->ndexSize, 0 );                                               //
     iseq(pIfsInfo->begClock, 0 );                                               //
     iseq(pIfsInfo->endClock, 0 );                                               //
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, 2 );                                               //
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, 1 );                                               //
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, 2);
+        iseq(pIfsInfo->codec->h262->audioPid, 1);
+    }
+
     isne(pIfsInfo->path , NULL);                                                //
     isne(pIfsInfo->name , NULL);                                                //
     test(IfsFreeInfo(pIfsInfo), IfsReturnCodeNoErrorReported);                  //
@@ -731,8 +739,11 @@ static void UnitTest100(char * saveName)                                        
                               (NumBytes)sizeof(IfsIndexEntry)));                //
     iseq(pIfsInfo->begClock, 2*NSEC_PER_SEC);                                   //
     iseq(pIfsInfo->endClock, 4*NSEC_PER_SEC);                                   //
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, 2 );                                               //
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, 1 );                                               //
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, 2);
+        iseq(pIfsInfo->codec->h262->audioPid, 1);
+    }
     isne(pIfsInfo->path , NULL);                                                //
     isne(pIfsInfo->name , NULL);                                                //
     test(IfsFreeInfo(pIfsInfo), IfsReturnCodeNoErrorReported);                  //
@@ -765,17 +776,20 @@ static void UnitTest100(char * saveName)                                        
                               (NumBytes)sizeof(IfsIndexEntry)));                //
     iseq(pIfsInfo->begClock, 2*NSEC_PER_SEC );                                  //
     iseq(pIfsInfo->endClock, 4*NSEC_PER_SEC );                                  //
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);                                //
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);                                //
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );                                               //
     isne(pIfsInfo->name , NULL );                                               //
     test(IfsFreeInfo(pIfsInfo), IfsReturnCodeNoErrorReported);                  //
 
     test(IfsClose(ifsHandle), IfsReturnCodeNoErrorReported);                    // 100.0230 - IfsClose
 
-    iseq((IfsIndex)-1, IfsGetWhatAll());                                        // 100.0240 - verify every indexing bit was set by test 100
+    iseq(0xFFFFFFFFFFFFFFFF, IfsGetWhatAll());                                        // 100.0240 - verify every indexing bit was set by test 100
 
-    IfsSetMode(IfsIndexDumpModeDef, IfsIndexerSettingUnitest);
+    IfsSetMode(IfsIndexDumpModeDef, IfsH262IndexerSettingUnitest);
 }
 
 static void UnitTest101(char * saveName)                                        // 101.0000 - verify basic IfsSeekToTime and IfsSeekToPacket operation
@@ -805,8 +819,11 @@ static void UnitTest101(char * saveName)                                        
                               (NumBytes)sizeof(IfsIndexEntry)));
     iseq(pIfsInfo->begClock, 2*NSEC_PER_SEC );
     iseq(pIfsInfo->endClock, 4*NSEC_PER_SEC );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -1009,8 +1026,11 @@ static void UnitTest102(char * saveName)                                        
                               (NumBytes)sizeof(IfsIndexEntry)));
     iseq(pIfsInfo->begClock, 2*NSEC_PER_SEC );
     iseq(pIfsInfo->endClock, 4*NSEC_PER_SEC );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -1203,8 +1223,11 @@ static void UnitTest103(char * saveName)                                        
                               (NumBytes)sizeof(IfsIndexEntry)));
     iseq(pIfsInfo->begClock, 2*NSEC_PER_SEC );
     iseq(pIfsInfo->endClock, 4*NSEC_PER_SEC );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path, NULL );
     isne(pIfsInfo->name, NULL );
 
@@ -3073,8 +3096,11 @@ static void UnitTest8XX(const char * fileName, char * saveName,                 
     iseq(pIfsInfo->ndexSize, 0 );
     iseq(pIfsInfo->begClock, 0 );
     iseq(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, videoPid);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, audioPid);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, videoPid);
+        iseq(pIfsInfo->codec->h262->audioPid, audioPid);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3098,8 +3124,11 @@ static void UnitTest8XX(const char * fileName, char * saveName,                 
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, videoPid);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, audioPid);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, videoPid);
+        iseq(pIfsInfo->codec->h262->audioPid, audioPid);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3115,8 +3144,11 @@ static void UnitTest8XX(const char * fileName, char * saveName,                 
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3143,8 +3175,11 @@ static void UnitTest8XX(const char * fileName, char * saveName,                 
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3198,8 +3233,11 @@ static void UnitTest901(char * saveName)                                        
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3306,8 +3344,11 @@ static void UnitTest902(char * saveName)                                        
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3433,8 +3474,11 @@ static void UnitTest903(char * saveName)                                        
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3539,8 +3583,11 @@ static void UnitTest904(char * saveName)                                        
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3598,8 +3645,11 @@ static void UnitTest101X(char * saveName, const char * fileName,                
     iseq(pIfsInfo->ndexSize, 0 );
     iseq(pIfsInfo->begClock, 0 );
     iseq(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, videoPid);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, audioPid);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, videoPid);
+        iseq(pIfsInfo->codec->h262->audioPid, audioPid);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3649,8 +3699,11 @@ static void UnitTest101X(char * saveName, const char * fileName,                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, videoPid);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, audioPid);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, videoPid);
+        iseq(pIfsInfo->codec->h262->audioPid, audioPid);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3666,8 +3719,11 @@ static void UnitTest101X(char * saveName, const char * fileName,                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3695,8 +3751,11 @@ static void UnitTest101X(char * saveName, const char * fileName,                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3728,8 +3787,11 @@ static void UnitTest102X(char * saveName)                                       
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3794,8 +3856,11 @@ static void UnitTest103Y(IfsHandle ifsHandle, IfsHandle outHandle,              
     isne(pIfsInfo->ndexSize, 0 );
     isge(pIfsInfo->begClock, tmpBegClock );
     isle(pIfsInfo->endClock, tmpEndClock );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3883,8 +3948,11 @@ static void UnitTest103X(char * saveName, const char * fileName)                
     iseq(pIfsInfo->ndexSize, 0 );
     iseq(pIfsInfo->begClock, 0 );
     iseq(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3904,8 +3972,11 @@ static void UnitTest103X(char * saveName, const char * fileName)                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3960,8 +4031,11 @@ static void UnitTest104X(char * saveName, const char * fileName)                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4052,8 +4126,11 @@ static void UnitTest105X(char * saveName, const char * fileName)                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4467,8 +4544,11 @@ static void UnitTest121X(char * saveName, const char * fileName,                
     iseq(pIfsInfo->ndexSize, 0 );
     iseq(pIfsInfo->begClock, 0 );
     iseq(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, videoPid);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, audioPid);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, videoPid);
+        iseq(pIfsInfo->codec->h262->audioPid, audioPid);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4490,8 +4570,11 @@ static void UnitTest121X(char * saveName, const char * fileName,                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, videoPid);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, audioPid);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, videoPid);
+        iseq(pIfsInfo->codec->h262->audioPid, audioPid);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4507,8 +4590,11 @@ static void UnitTest121X(char * saveName, const char * fileName,                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4536,8 +4622,11 @@ static void UnitTest121X(char * saveName, const char * fileName,                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4569,8 +4658,11 @@ static void UnitTest122X(char * saveName)                                       
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4635,8 +4727,11 @@ static void UnitTest123Y(IfsHandle ifsHandle, IfsHandle outHandle,              
     isne(pIfsInfo->ndexSize, 0 );
     isge(pIfsInfo->begClock, tmpBegClock );
     isle(pIfsInfo->endClock, tmpEndClock );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4724,8 +4819,11 @@ static void UnitTest123X(char * saveName, const char * fileName)                
     iseq(pIfsInfo->ndexSize, 0 );
     iseq(pIfsInfo->begClock, 0 );
     iseq(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4745,8 +4843,11 @@ static void UnitTest123X(char * saveName, const char * fileName)                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4801,8 +4902,11 @@ static void UnitTest124X(char * saveName, const char * fileName)                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -4895,8 +4999,11 @@ static void UnitTest125X(char * saveName, const char * fileName)                
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    iseq(IFS_CODEC(pIfsInfo)->videoPid, IFS_UNDEFINED_PID);
-    iseq(IFS_CODEC(pIfsInfo)->audioPid, IFS_UNDEFINED_PID);
+    if (ifsHandle->codecType == IfsCodecTypeH262)
+    {
+        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
+        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
+    }
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -5008,7 +5115,7 @@ int main(int argc, char *argv[])
 
     IfsInit();
 
-    IfsSetMode(IfsIndexDumpModeDef, IfsIndexerSettingUnitest);
+    IfsSetMode(IfsIndexDumpModeDef, IfsH262IndexerSettingUnitest);
 
     if (debug)
     {

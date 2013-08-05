@@ -76,14 +76,14 @@ extern log4c_category_t * ifs_RILogCategory;
 #define RILOG_CATEGORY ifs_RILogCategory
 
 extern IfsIndexDumpMode indexDumpMode;
-extern IfsIndex whatAll;
+extern ullong whatAll;
 extern unsigned indexCase;
 extern unsigned ifsFileChunkSize;
 
 
 // Utility operations:
 
-IfsIndex IfsGetWhatAll(void)
+ullong IfsGetWhatAll(void)
 {
     return whatAll;
 }
@@ -234,14 +234,38 @@ void IfsDumpInfo(const IfsInfo * const pIfsInfo)
             pIfsInfo->ndexSize, temp));
     RILOG_INFO("pIfsInfo->begClock %s\n", IfsToSecs(pIfsInfo->begClock, temp));
     RILOG_INFO("pIfsInfo->endClock %s\n", IfsToSecs(pIfsInfo->endClock, temp));
-    RILOG_INFO("pIfsInfo->codec->videoPid %d\n", IFS_CODEC(pIfsInfo)->videoPid);
-    RILOG_INFO("pIfsInfo->codec->audioPid %d\n", IFS_CODEC(pIfsInfo)->audioPid);
     RILOG_INFO("pIfsInfo->maxSize  %ld\n", pIfsInfo->maxSize);
 }
 
 void IfsDumpHandle(const IfsHandle ifsHandle)
 {
     char temp[256]; // Used by ParseWhat
+    char* (*parseWhat)(IfsHandle ifsHandle, char * temp,
+        const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean) = NULL;
+    void (*dumpHandle)(const IfsHandle ifsHandle) = NULL;
+
+    switch (ifsHandle->codecType)
+    {
+        case IfsCodecTypeH261:
+        case IfsCodecTypeH262:
+        case IfsCodecTypeH263:
+            parseWhat = ifsHandle->codec->h262->ParseWhat;
+            dumpHandle = ifsHandle->codec->h262->DumpHandle;
+            break;
+        case IfsCodecTypeH264:
+            parseWhat = ifsHandle->codec->h264->ParseWhat;
+            dumpHandle = ifsHandle->codec->h264->DumpHandle;
+            break;
+        case IfsCodecTypeH265:
+            parseWhat = ifsHandle->codec->h265->ParseWhat;
+            dumpHandle = ifsHandle->codec->h265->DumpHandle;
+            break;
+        default:
+            RILOG_ERROR("IfsReturnCodeBadInputParameter: ifsHandle->codec "
+                        "not set in line %d of %s\n", __LINE__, __FILE__);
+            g_static_mutex_unlock(&(ifsHandle->mutex));
+            return;
+    }
 
     g_static_mutex_lock(&(ifsHandle->mutex));
     RILOG_INFO("ifsHandle->path             %s\n", ifsHandle->path); // char *
@@ -267,22 +291,11 @@ void IfsDumpHandle(const IfsHandle ifsHandle)
             (ifsHandle->nxtClock, temp)); // IfsClock
     RILOG_INFO("ifsHandle->entry.when       %s\n", IfsToSecs //
             (ifsHandle->entry.when, temp)); // IfsClock
-    RILOG_INFO("ifsHandle->entry.what       %s\n", IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp, //
+    RILOG_INFO("ifsHandle->entry.what       %s\n", parseWhat(ifsHandle, temp, //
             IfsIndexDumpModeDef, //
             IfsFalse)); // IfsIndex
     RILOG_INFO("ifsHandle->entry.realWhere  %ld\n", ifsHandle->entry.realWhere); // NumPackets
     RILOG_INFO("ifsHandle->entry.virtWhere  %ld\n", ifsHandle->entry.virtWhere); // NumPackets
-    RILOG_INFO("ifsHandle->codec->ifsPcr     %s\n", IfsLongLongToString //
-            (IFS_CODEC(ifsHandle)->ifsPcr, temp)); // IfsPcr
-    RILOG_INFO("ifsHandle->codec->ifsPts     %s\n", IfsLongLongToString //
-            (IFS_CODEC(ifsHandle)->ifsPts, temp)); // IfsPts
-    RILOG_INFO("ifsHandle->codec->videoPid         %d\n", IFS_CODEC(ifsHandle)->videoPid); // IfsPid
-    RILOG_INFO("ifsHandle->codec->audioPid         %d\n", IFS_CODEC(ifsHandle)->audioPid); // IfsPid
-    RILOG_INFO("ifsHandle->ifsState         %d\n", ifsHandle->ifsState); // IfsState
-    RILOG_INFO("ifsHandle->codec->oldEsp    %d\n", IFS_CODEC(ifsHandle)->oldEsp); // unsigned char
-    RILOG_INFO("ifsHandle->codec->oldSc     %d\n", IFS_CODEC(ifsHandle)->oldSc); // unsigned char
-    RILOG_INFO("ifsHandle->codec->oldTp     %d\n", IFS_CODEC(ifsHandle)->oldTp); // unsigned char
-    RILOG_INFO("ifsHandle->codec->oldCc     %d\n", IFS_CODEC(ifsHandle)->oldCc); // unsigned char
     RILOG_INFO("ifsHandle->maxPacket        %ld\n", ifsHandle->maxPacket); // NumPackets
     RILOG_INFO("ifsHandle->curFileNumber    %ld\n", ifsHandle->curFileNumber); // FileNumber
     RILOG_INFO("ifsHandle->entryNum         %ld\n", ifsHandle->entryNum); // NumEntries
@@ -293,10 +306,11 @@ void IfsDumpHandle(const IfsHandle ifsHandle)
     RILOG_INFO("ifsHandle->appendIndexShift %ld\n", ifsHandle->appendIndexShift); // NumPackets
     RILOG_INFO("ifsHandle->maxSize          %ld\n", ifsHandle->maxSize); // IfsTime
     g_static_mutex_unlock(&(ifsHandle->mutex));
+    dumpHandle(ifsHandle);
 }
 
 void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
-        const IfsIndexerSetting ifsIndexerSetting)
+        const ullong ifsIndexerSetting)
 {
     indexDumpMode = ifsIndexDumpMode;
     SetIndexer(ifsIndexerSetting);
@@ -411,8 +425,12 @@ IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, // Input
                 > ifsHandle->maxSize * NSEC_PER_SEC) ? ifsHandle->endClock
                 - ifsHandle->maxSize * NSEC_PER_SEC : ifsHandle->begClock);
         pIfsInfo->endClock = ifsHandle->endClock; // in nanoseconds
-        IFS_CODEC(pIfsInfo)->videoPid = IFS_CODEC(ifsHandle)->videoPid;
-        IFS_CODEC(pIfsInfo)->audioPid = IFS_CODEC(ifsHandle)->audioPid;
+
+        if (ifsHandle->codecType == IfsCodecTypeH262)
+        {
+            pIfsInfo->codec->h262->videoPid = ifsHandle->codec->h262->videoPid;
+            pIfsInfo->codec->h262->audioPid = ifsHandle->codec->h262->audioPid;
+        }
 
         pIfsInfo->path = g_try_malloc(pathSize); // g_free in IfsFreeInfo()
         pIfsInfo->name = g_try_malloc(nameSize); // g_free in IfsFreeInfo()

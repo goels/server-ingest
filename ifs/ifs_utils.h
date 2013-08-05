@@ -63,14 +63,14 @@
 
 #define IFS_UNDEFINED_BYTE ((unsigned char)-1)
 
-IfsIndex IfsGetWhatAll(void);
+ullong IfsGetWhatAll(void);
 const char * IfsReturnCodeToString(const IfsReturnCode ifsReturnCode);
 char * IfsToSecs(const IfsClock ifsClock, char * const temp);
 char * IfsLongLongToString(ullong value, char * const temp);
 void IfsDumpInfo(const IfsInfo * const pIfsInfo);
 void IfsDumpHandle(const IfsHandle ifsHandle);
 void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
-        const IfsIndexerSetting ifsIndexerSetting);
+        const ullong ifsIndexerSetting);
 IfsReturnCode IfsFreeInfo(IfsInfo * pIfsInfo);
 IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, IfsInfo ** ppIfsInfo);
 

@@ -84,7 +84,7 @@ extern log4c_category_t * ifs_RILogCategory;
 #define RILOG_CATEGORY ifs_RILogCategory
 
 extern IfsIndexDumpMode indexDumpMode;
-extern IfsIndex whatAll;
+extern ullong whatAll;
 extern unsigned indexCase;
 extern unsigned ifsFileChunkSize;
 
@@ -310,9 +310,37 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
         return IfsReturnCodeFileSeekingError;
     }
 
+    IfsBoolean (*parsePacket)(IfsHandle ifsHandle, IfsPacket* pIfsPacket) = NULL;
+    char* (*parseWhat)(IfsHandle ifsHandle, char * temp,
+        const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean) = NULL;
+
+    switch (ifsHandle->codecType)
+    {
+        case IfsCodecTypeH261:
+        case IfsCodecTypeH262:
+        case IfsCodecTypeH263:
+            parsePacket = ifsHandle->codec->h262->ParsePacket;
+            parseWhat = ifsHandle->codec->h262->ParseWhat;
+            break;
+        case IfsCodecTypeH264:
+            parsePacket = ifsHandle->codec->h264->ParsePacket;
+            parseWhat = ifsHandle->codec->h264->ParseWhat;
+            break;
+        case IfsCodecTypeH265:
+            parsePacket = ifsHandle->codec->h265->ParsePacket;
+            parseWhat = ifsHandle->codec->h265->ParseWhat;
+            break;
+        default:
+            RILOG_ERROR("IfsReturnCodeBadInputParameter: ifsHandle->codec "
+                        "not set in line %d of %s\n", __LINE__, __FILE__);
+            g_static_mutex_unlock(&(ifsHandle->mutex));
+            return IfsReturnCodeBadInputParameter;
+            break;
+    }
+
     for (i = 0; i < numPackets; i++)
     {
-        if (IFS_CODEC(ifsHandle)->ParsePacket(ifsHandle, pData + i)) // Set and test WHAT
+        if (parsePacket(ifsHandle, pData + i)) // Set and test WHAT
         {
             char temp[256]; // ParseWhat
 
@@ -326,7 +354,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
                         indexCase++,
                         (unsigned long)(ifsHandle->entry.what>>32),
                         (unsigned long)ifsHandle->entry.what,
-                        IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
+                        parseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
 #else
                 RILOG_INFO("%4d  %08X = %s\n", indexCase++,
                         ifsHandle->entry.what, ParseWhat(ifsHandle, temp,
@@ -338,7 +366,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
             {
                 RILOG_TRACE("%9ld %9ld %s\n", ifsHandle->entry.realWhere, // offset in packets
                         ifsHandle->entry.virtWhere, // offset in packets
-                        IFS_CODEC(ifsHandle)->ParseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
+                        parseWhat(ifsHandle, temp, indexDumpMode, IfsTrue));
             }
 
             if (fwrite(&ifsHandle->entry, 1, sizeof(IfsIndexEntry),
