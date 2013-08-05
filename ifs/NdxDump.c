@@ -321,6 +321,14 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
                         return IfsTrue;
                     }
 
+                    // TODO: set the correct container!
+                    if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ts)
+                            != IfsReturnCodeNoErrorReported)
+                    {
+                        printf("Problems setting ifs container\n");
+                        return IfsTrue;
+                    }
+
                     if (IfsSetCodec(ifsHandle, gCodecType)
                             != IfsReturnCodeNoErrorReported)
                     {

@@ -131,6 +131,10 @@ typedef struct IfsHandleImpl
     long pad1;
 #endif
 
+    // Transport container-specific handle params
+    IfsContainerType containerType;
+    //IfsContainer* container;
+
     // Video codec-specific handle params
     IfsCodecType codecType;
     IfsCodec* codec;
@@ -163,5 +167,8 @@ typedef struct IfsHandleImpl
 void SetIndexer(ullong ifsIndexerSetting);
 IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
                           IfsCodecType codecType // Input
+                          );
+IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,           // Input
+                              IfsContainerType containerType // Input
                           );
 #endif

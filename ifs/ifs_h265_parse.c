@@ -121,6 +121,14 @@ void h265_DumpIndexes(void)
         g_static_mutex_init(&(tempHandleImpl.mutex));
         tempHandleImpl.entry.what = ((IfsH265Index) 1) << i;
 
+        // TODO: set the correct container!
+        if (IfsSetContainer(&tempHandleImpl, IfsContainerTypeMpeg2Ts)
+                != IfsReturnCodeNoErrorReported)
+        {
+            printf("Problems setting ifs codec\n");
+            return;
+        }
+
         if (IfsSetCodec(&tempHandleImpl, IfsCodecTypeH265)
                 != IfsReturnCodeNoErrorReported)
         {

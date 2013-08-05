@@ -120,6 +120,15 @@ typedef enum
 
 typedef enum
 {
+    IfsContainerTypeError             =  0,
+    IfsContainerTypeMpeg2Ps           =  1,
+    IfsContainerTypeMpeg2Ts           =  2,
+    IfsContainerTypeMpeg4             =  4,
+
+} IfsContainerType;
+
+typedef enum
+{
     IfsReturnCodeNoErrorReported      =  0,
 
     IfsReturnCodeBadInputParameter    =  1,

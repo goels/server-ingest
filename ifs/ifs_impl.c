@@ -758,6 +758,45 @@ IfsReturnCode IfsClearCodecs(IfsHandle ifsHandle)
     return ifsReturnCode;
 }
 
+IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,           // Input
+                              IfsContainerType containerType // Input
+)
+{
+    IfsReturnCode ifsReturnCode = IfsReturnCodeNoErrorReported;
+
+    if (ifsHandle == NULL)
+    {
+        RILOG_ERROR("IfsReturnCodeBadInputParameter: "
+                    "ifsHandle == NULL in line %d of %s\n", __LINE__, __FILE__);
+        return IfsReturnCodeBadInputParameter;
+    }
+
+    g_static_mutex_lock(&(ifsHandle->mutex));
+    ifsHandle->containerType = containerType;
+
+    switch (containerType)
+    {
+        case IfsContainerTypeMpeg2Ts:
+            //RILOG_INFO("parsing MPEG2TS containers\n");
+            break;
+        case IfsContainerTypeMpeg2Ps:
+            //RILOG_INFO("parsing MPEG2PS containers\n");
+            break;
+        case IfsContainerTypeMpeg4:
+            //RILOG_INFO("parsing MPEG4 containers\n");
+            break;
+        default:
+            RILOG_ERROR("IfsReturnCodeBadInputParameter: ifsHandle->container "
+                        "not set in line %d of %s\n", __LINE__, __FILE__);
+            ifsReturnCode = IfsReturnCodeBadInputParameter;
+            break;
+    }
+
+    g_static_mutex_unlock(&(ifsHandle->mutex));
+
+    return ifsReturnCode;
+}
+
 IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
                           IfsCodecType codecType // Input
 )

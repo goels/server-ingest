@@ -75,6 +75,9 @@
 #endif
 
 #include "ifs_file.h"
+#include "ifs_mpeg2ts_parse.h"
+#include "ifs_mpeg2ps_parse.h"
+#include "ifs_mpeg4_parse.h"
 #include "ifs_h262_parse.h"
 #include "ifs_h264_parse.h"
 #include "ifs_h265_parse.h"
@@ -314,20 +317,38 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
     char* (*parseWhat)(IfsHandle ifsHandle, char * temp,
         const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean) = NULL;
 
+    switch (ifsHandle->containerType)
+    {
+        case IfsContainerTypeMpeg2Ts:
+            //RILOG_INFO("parsing MPEG2TS containers\n");
+            parsePacket = mpeg2ts_ParsePacket;
+            break;
+        case IfsContainerTypeMpeg2Ps:
+            //RILOG_INFO("parsing MPEG2PS containers\n");
+            parsePacket = mpeg2ps_ParsePacket;
+            break;
+        case IfsContainerTypeMpeg4:
+            //RILOG_INFO("parsing MPEG4 containers\n");
+            parsePacket = mpeg4_ParsePacket;
+            break;
+        default:
+            RILOG_ERROR("IfsReturnCodeBadInputParameter: ifsHandle->container "
+                        "not set in line %d of %s\n", __LINE__, __FILE__);
+            g_static_mutex_unlock(&(ifsHandle->mutex));
+            return IfsReturnCodeBadInputParameter;
+    }
+
     switch (ifsHandle->codecType)
     {
         case IfsCodecTypeH261:
         case IfsCodecTypeH262:
         case IfsCodecTypeH263:
-            parsePacket = ifsHandle->codec->h262->ParsePacket;
             parseWhat = ifsHandle->codec->h262->ParseWhat;
             break;
         case IfsCodecTypeH264:
-            parsePacket = ifsHandle->codec->h264->ParsePacket;
             parseWhat = ifsHandle->codec->h264->ParseWhat;
             break;
         case IfsCodecTypeH265:
-            parsePacket = ifsHandle->codec->h265->ParsePacket;
             parseWhat = ifsHandle->codec->h265->ParseWhat;
             break;
         default:
@@ -335,7 +356,6 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
                         "not set in line %d of %s\n", __LINE__, __FILE__);
             g_static_mutex_unlock(&(ifsHandle->mutex));
             return IfsReturnCodeBadInputParameter;
-            break;
     }
 
     for (i = 0; i < numPackets; i++)

@@ -57,52 +57,11 @@
 
 #include "ifs_h262_impl.h"
 #include "ifs_h262_parse.h"
+#include "ifs_mpeg2ts_parse.h"
 #include "ifs_utils.h"
 
 extern ullong indexerSetting;
 
-static IfsPid GetPid(IfsPacket * pIfsPacket)
-{
-    return (((IfsPid)(pIfsPacket->bytes[1] & 0x1F)) << 8)
-            | pIfsPacket->bytes[2];
-}
-
-static void ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
-{
-    unsigned char espBit = (bytes[0] >> 5) & 0x01;
-    unsigned char what = bytes[0] & ~(1 << 5);
-
-    if (ifsHandle->codec->h262->oldEsp == IFS_UNDEFINED_BYTE)
-    {
-        ifsHandle->codec->h262->oldEsp = espBit;
-    }
-    else if (ifsHandle->codec->h262->oldEsp != espBit)
-    {
-        what |= (1 << 5);
-        ifsHandle->codec->h262->oldEsp = espBit;
-    }
-
-    ifsHandle->entry.what |= what;
-
-    //  if (PCR_flag == '1') {
-    //      program_clock_reference_base     33 uimsbf
-    //      reserved                          6 bslbf
-    //      program_clock_reference_extension 9 uimsbf
-    //
-    //  PCR(i) = PCR_base(i) × 300 + PCR_ext(i)
-
-    if (what & IfsIndexAdaptPcreBit)
-    {
-        ifsHandle->codec->h262->ifsPcr = (((IfsPcr) bytes[1]) << 25); // 33-25
-        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[2]) << 17); // 24-17
-        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[3]) << 9); // 16- 9
-        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[4]) << 1); //  8- 1
-        ifsHandle->codec->h262->ifsPcr |= (((IfsPcr) bytes[5]) >> 7); //     0
-
-        ifsHandle->codec->h262->ifsPcr = (ifsHandle->codec->h262->ifsPcr * 300 + (((((IfsPcr) bytes[5])
-                & 1) << 8) | bytes[6]));
-    }
-}
 
 static void ParseCode(IfsHandle ifsHandle, const unsigned char code)
 {
@@ -670,7 +629,7 @@ static void ParsePacket(IfsHandle ifsHandle,
         const unsigned char afLen = bytes[4];
 
         if (afLen)
-            ParseAdaptation(ifsHandle, &bytes[5]);
+            mpeg2ts_ParseAdaptation(ifsHandle, &bytes[5]);
 
         if (pdeBit)
         {
@@ -690,18 +649,16 @@ IfsBoolean h262_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
     {
         ifsHandle->entry.what = 0;
 
-        if (GetPid(pIfsPacket) == ifsHandle->codec->h262->videoPid)
+        if (mpeg2ts_GetPid(pIfsPacket) == ifsHandle->codec->h262->videoPid)
         {
+            //printf("parsing MPEG2TS packet\n");
             ParsePacket(ifsHandle, pIfsPacket->bytes);
         }
     }
-    else
+    else  // TODO: this section should parse MPEG PS
     {
-        ifsHandle->entry.what = IfsIndexHeaderBadSync;
-
-        // Abandon this entire packet and Reset the PES state machine
-
-        ifsHandle->ifsState = IfsStateInitial;
+        //printf("parsing MPEG2PS packet\n");
+        ParseElementary(ifsHandle, pIfsPacket->pktSize, pIfsPacket->bytes);
     }
 
     return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
@@ -1271,6 +1228,14 @@ void h262_DumpIndexes(void)
         tempHandleImpl.codec = (IfsCodec*)&localH262Codec;
         g_static_mutex_init(&(tempHandleImpl.mutex));
         tempHandleImpl.entry.what = ((IfsH262Index) 1) << i;
+
+        // TODO: set the correct container!
+        if (IfsSetContainer(&tempHandleImpl, IfsContainerTypeMpeg2Ts)
+                != IfsReturnCodeNoErrorReported)
+        {
+            printf("Problems setting ifs codec\n");
+            return;
+        }
 
         if (IfsSetCodec(&tempHandleImpl, IfsCodecTypeH262)
                 != IfsReturnCodeNoErrorReported)
