@@ -181,8 +181,7 @@ typedef struct IfsInfo
 
 typedef struct IfsPacket
 {
-    unsigned char bytes[MAX_TRANSPORT_PACKET_SIZE];
-    NumBytes pktSize; // size of the transport packet (188, 192, 204, or 208)
+    unsigned char bytes[IFS_TRANSPORT_PACKET_SIZE];
 
 } IfsPacket;
 

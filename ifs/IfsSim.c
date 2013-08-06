@@ -628,6 +628,26 @@ static IfsBoolean ProcessArguments(int argc, char *argv[])
     return IfsFalse;
 }
 
+// set the IfsHandle codec and container types for all tests...
+// returns TRUE on success else FALSE
+static IfsBoolean SetIfsContainerAndCodec(IfsHandle ifsHandle)
+{
+    if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ts)
+            != IfsReturnCodeNoErrorReported)
+    {
+        printf("Problems setting ifs container\n");
+        return IfsFalse;
+    }
+
+    if (IfsSetCodec(ifsHandle, IfsCodecTypeH262) != IfsReturnCodeNoErrorReported)
+    {
+        printf("Problems setting ifs codec\n");
+        return IfsFalse;
+    }
+
+    return IfsTrue;
+}
+
 static void UnitTest100(char * saveName)                                        // 100.0000 - verify the indexer operation
 {
     // This test verifies the indexer operation and verifies the interface
@@ -672,10 +692,12 @@ static void UnitTest100(char * saveName)                                        
     if (ifsHandle == NULL)                                                      //
         return;                                                                 //
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsStart(NULL, 2, 1), IfsReturnCodeBadInputParameter);                 // 100.0070 - NULL ifsHandle param to IfsStart
 
     test(IfsStart(ifsHandle, 2, 1), IfsReturnCodeNoErrorReported);              // 100.0080 - IfsStart
-
     pIfsInfo = (IfsInfo *) 1;                                                   // 100.0090 - NULL ifsHandle param to IfsHandleInfo
     isne(pIfsInfo, NULL);                                                       //
     test(IfsHandleInfo(NULL, &pIfsInfo), IfsReturnCodeBadInputParameter);       //
@@ -763,6 +785,9 @@ static void UnitTest100(char * saveName)                                        
     if (ifsHandle == NULL)                                                      //
         return;                                                                 //
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsStart(ifsHandle, 2, 1), IfsReturnCodeMustBeAnIfsWriter);            // 100.0220 - attempt illegal write ops to an IfsReader
     test(IfsSetMaxSize(ifsHandle, 60*60), IfsReturnCodeMustBeAnIfsWriter);      //
     test(IfsStop(ifsHandle), IfsReturnCodeMustBeAnIfsWriter);                   //
@@ -812,6 +837,9 @@ static void UnitTest101(char * saveName)                                        
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     iseq(pIfsInfo->mpegSize, (NumBytes)numData*(NumBytes)sizeof(IfsPacket));
@@ -1020,6 +1048,9 @@ static void UnitTest102(char * saveName)                                        
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     iseq(pIfsInfo->mpegSize, (NumBytes)numData*(NumBytes)sizeof(IfsPacket));
     iseq(pIfsInfo->ndexSize, ((NumBytes)(numData-NUM_NULLS)*
@@ -1044,6 +1075,9 @@ static void UnitTest102(char * saveName)                                        
     isne(dstHandle, NULL);
     if (dstHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
 
     test(IfsConvert(NULL, dstHandle, &begClock, &endClock),                     // 102.0010 - NULL srcHandle param to IfsConvert
         IfsReturnCodeBadInputParameter);                                        //
@@ -1083,6 +1117,9 @@ static void UnitTest102(char * saveName)                                        
     if (dstHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
+
     test(IfsConvert(ifsHandle, dstHandle, &begClock, &endClock),                // 102.0070 - convert outside (after) the file
             IfsReturnCodeSeekOutsideFile);                                      //
     iseq(begClock, 0*NSEC_PER_SEC);                                             //
@@ -1105,6 +1142,9 @@ static void UnitTest102(char * saveName)                                        
     isne(dstHandle, NULL);
     if (dstHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
 
     test(IfsConvert(ifsHandle, dstHandle, &begClock, &endClock),                // 102.0080 - convert the first two thirds of the file
             IfsReturnCodeNoErrorReported);                                      //
@@ -1129,6 +1169,9 @@ static void UnitTest102(char * saveName)                                        
     if (dstHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
+
     test(IfsConvert(ifsHandle, dstHandle, &begClock, &endClock),                // 102.0090 - convert the last two thirds of the file
             IfsReturnCodeNoErrorReported);                                      //
     iseq(begClock, 3*NSEC_PER_SEC);                                             //
@@ -1152,6 +1195,9 @@ static void UnitTest102(char * saveName)                                        
     if (dstHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
+
     test(IfsConvert(ifsHandle, dstHandle, &begClock, &endClock),                // 102.0100 - convert the entire file
             IfsReturnCodeNoErrorReported);                                      //
     iseq(begClock, 2*NSEC_PER_SEC);                                             //
@@ -1174,6 +1220,9 @@ static void UnitTest102(char * saveName)                                        
     isne(dstHandle, NULL);
     if (dstHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
 
     test(IfsConvert(ifsHandle, dstHandle, &begClock, &endClock),                // 102.0110 - convert just the middle third of the file
             IfsReturnCodeNoErrorReported);                                      //
@@ -1217,6 +1266,9 @@ static void UnitTest103(char * saveName)                                        
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     iseq(pIfsInfo->mpegSize, (NumBytes)numData*(NumBytes)sizeof(IfsPacket));
     iseq(pIfsInfo->ndexSize, ((NumBytes)(numData-NUM_NULLS)*
@@ -1242,6 +1294,9 @@ static void UnitTest103(char * saveName)                                        
     isne(dstHandle, NULL);
     if (dstHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
 
     test(IfsConvert(ifsHandle, dstHandle, &begClock, &endClock),                // 103.0010 - convert the first third of the file
             IfsReturnCodeNoErrorReported);                                      //
@@ -1312,6 +1367,9 @@ static void UnitTest103(char * saveName)                                        
     isne(dstHandle, NULL);
     if (dstHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(dstHandle))
+        return;                                                                 //
 
     test(IfsConvert(ifsHandle, dstHandle, &begClock, &endClock),                // 103.0090 - convert the second third of the file
             IfsReturnCodeNoErrorReported);                                      //
@@ -3088,9 +3146,11 @@ static void UnitTest8XX(const char * fileName, char * saveName,                 
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsStart(ifsHandle, videoPid, audioPid),                               // 8XX.0020 - start the indexer
         IfsReturnCodeNoErrorReported);
-
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);    // 8XX.0030 - verify the starting state of the indexer
     iseq(pIfsInfo->mpegSize, 0 );
     iseq(pIfsInfo->ndexSize, 0 );
@@ -3144,11 +3204,8 @@ static void UnitTest8XX(const char * fileName, char * saveName,                 
     isne(pIfsInfo->ndexSize, 0 );
     isne(pIfsInfo->begClock, 0 );
     isne(pIfsInfo->endClock, 0 );
-    if (ifsHandle->codecType == IfsCodecTypeH262)
-    {
-        iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
-        iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
-    }
+    isne(pIfsInfo->codec, NULL);
+    iseq(pIfsInfo->codec->h262, NULL);
     isne(pIfsInfo->path , NULL );
     isne(pIfsInfo->name , NULL );
 
@@ -3167,6 +3224,9 @@ static void UnitTest8XX(const char * fileName, char * saveName,                 
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     iseq(saveSize, ifsHandle->mpegSize+ifsHandle->ndexSize);
 
@@ -3227,6 +3287,9 @@ static void UnitTest901(char * saveName)                                        
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -3338,6 +3401,9 @@ static void UnitTest902(char * saveName)                                        
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -3469,6 +3535,9 @@ static void UnitTest903(char * saveName)                                        
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
     isne(pIfsInfo->ndexSize, 0 );
@@ -3578,6 +3647,9 @@ static void UnitTest904(char * saveName)                                        
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
     isne(pIfsInfo->ndexSize, 0 );
@@ -3637,9 +3709,11 @@ static void UnitTest101X(char * saveName, const char * fileName,                
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsStart(ifsHandle, videoPid, audioPid),                               // 101X.0020 - start the TSB
         IfsReturnCodeNoErrorReported);
-
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);    // 101X.0030 - verify the TSB start state
     iseq(pIfsInfo->mpegSize, 0 );
     iseq(pIfsInfo->ndexSize, 0 );
@@ -3744,6 +3818,9 @@ static void UnitTest101X(char * saveName, const char * fileName,                
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     iseq(saveSize, ifsHandle->mpegSize+ifsHandle->ndexSize);
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);    // 101X.0140 - verify the TSB reopen state
@@ -3781,6 +3858,9 @@ static void UnitTest102X(char * saveName)                                       
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -3943,12 +4023,15 @@ static void UnitTest103X(char * saveName, const char * fileName)                
     if (outHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(outHandle))
+        return;                                                                 //
+
     test(IfsHandleInfo(outHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     iseq(pIfsInfo->mpegSize, 0 );
     iseq(pIfsInfo->ndexSize, 0 );
     iseq(pIfsInfo->begClock, 0 );
     iseq(pIfsInfo->endClock, 0 );
-    if (ifsHandle->codecType == IfsCodecTypeH262)
+    if (outHandle->codecType == IfsCodecTypeH262)
     {
         iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
         iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
@@ -3966,6 +4049,9 @@ static void UnitTest103X(char * saveName, const char * fileName)                
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -4025,6 +4111,9 @@ static void UnitTest104X(char * saveName, const char * fileName)                
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -4120,6 +4209,9 @@ static void UnitTest105X(char * saveName, const char * fileName)                
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -4536,9 +4628,11 @@ static void UnitTest121X(char * saveName, const char * fileName,                
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     test(IfsStart(ifsHandle, videoPid, audioPid),                               // 121X.0020 - start the TSB
         IfsReturnCodeNoErrorReported);
-
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);    // 121X.0030 - verify the TSB start state
     iseq(pIfsInfo->mpegSize, 0 );
     iseq(pIfsInfo->ndexSize, 0 );
@@ -4615,6 +4709,9 @@ static void UnitTest121X(char * saveName, const char * fileName,                
     if (ifsHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
+
     iseq(saveSize, ifsHandle->mpegSize+ifsHandle->ndexSize);
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);    // 121X.0090 - verify the TSB reopen state
@@ -4652,6 +4749,9 @@ static void UnitTest122X(char * saveName)                                       
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -4814,12 +4914,15 @@ static void UnitTest123X(char * saveName, const char * fileName)                
     if (outHandle == NULL)
         return;
 
+    if (IfsFalse == SetIfsContainerAndCodec(outHandle))
+        return;                                                                 //
+
     test(IfsHandleInfo(outHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     iseq(pIfsInfo->mpegSize, 0 );
     iseq(pIfsInfo->ndexSize, 0 );
     iseq(pIfsInfo->begClock, 0 );
     iseq(pIfsInfo->endClock, 0 );
-    if (ifsHandle->codecType == IfsCodecTypeH262)
+    if (outHandle->codecType == IfsCodecTypeH262)
     {
         iseq(pIfsInfo->codec->h262->videoPid, IFS_UNDEFINED_PID);
         iseq(pIfsInfo->codec->h262->audioPid, IFS_UNDEFINED_PID);
@@ -4837,6 +4940,9 @@ static void UnitTest123X(char * saveName, const char * fileName)                
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -4896,6 +5002,9 @@ static void UnitTest124X(char * saveName, const char * fileName)                
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
@@ -4993,6 +5102,9 @@ static void UnitTest125X(char * saveName, const char * fileName)                
     isne(ifsHandle, NULL);
     if (ifsHandle == NULL)
         return;
+
+    if (IfsFalse == SetIfsContainerAndCodec(ifsHandle))
+        return;                                                                 //
 
     test(IfsHandleInfo(ifsHandle, &pIfsInfo), IfsReturnCodeNoErrorReported);
     isne(pIfsInfo->mpegSize, 0 );
