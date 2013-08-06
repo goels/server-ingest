@@ -64,6 +64,8 @@
 #include "ifs_h264_impl.h"
 #include "ifs_h265_impl.h"
 
+#define MAX_UINT64                  0xFFFFFFFFFFFFFFFF
+#define MAX_UINT32                  0xFFFFFFFF
 #define IfsIndexerSettingVerbose    0xFFFFFFFFFFFFFFFF
 
 typedef union IfsCodecImpl

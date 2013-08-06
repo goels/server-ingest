@@ -270,7 +270,7 @@ IfsReturnCode GetCurrentFileSizeAndCount(IfsHandle ifsHandle)
 
     ifsHandle->mpegSize = 0;
     ifsHandle->ndexSize = 0;
-    ifsHandle->begFileNumber = 0xFFFFFFFF;
+    ifsHandle->begFileNumber = MAX_UINT32;
     ifsHandle->endFileNumber = 0x00000000;
 
     while ((pDirent = readdir(pDir)) != NULL)
@@ -316,7 +316,7 @@ IfsReturnCode GetCurrentFileSizeAndCount(IfsHandle ifsHandle)
         ifsReturnCode = IfsReturnCodeCloseDirectoryError;
     }
 
-    if (ifsHandle->begFileNumber == 0xFFFFFFFF) // did not find any files
+    if (ifsHandle->begFileNumber == MAX_UINT32) // did not find any files
     {
         RILOG_ERROR(
                 "IfsReturnCodeFileOpeningError: did not find any files in line %d of %s\n",

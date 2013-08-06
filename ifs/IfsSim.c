@@ -787,7 +787,7 @@ static void UnitTest100(char * saveName)                                        
 
     test(IfsClose(ifsHandle), IfsReturnCodeNoErrorReported);                    // 100.0230 - IfsClose
 
-    iseq(0xFFFFFFFFFFFFFFFF, IfsGetWhatAll());                                        // 100.0240 - verify every indexing bit was set by test 100
+    iseq(MAX_UINT64, IfsGetWhatAll());                                        // 100.0240 - verify every indexing bit was set by test 100
 
     IfsSetMode(IfsIndexDumpModeDef, IfsH262IndexerSettingUnitest);
 }
