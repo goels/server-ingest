@@ -51,58 +51,32 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _RI_LOG_H
-#define _RI_LOG_H "$Rev: 141 $"
+// Private IFS File Definitions
 
-#define DEBUG_ERROR_LOGS
+#ifndef _IFS_FILE_H
+#define _IFS_FILE_H
 
-#include <stdio.h>
+#include "ifs_impl.h"
 
-#ifndef llong
-#define llong long long
-#endif
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned long uint24_t;
-typedef unsigned long uint32_t;
-typedef unsigned llong uint64_t;
-
-#define log4c_category_t void
-
-//LOG4C_API log4c_category_t * log4c_category_get(const char* a_name);
-#define log4c_category_get(a_name) NULL
-
-#define RILOG_FATAL(code, format, ...) \
-    printf((format), ## __VA_ARGS__), exit(code)
-
-#ifdef DEBUG_ERROR_LOGS
-#define RILOG_ERROR(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_CRIT(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_WARN(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_ERROR(format, ...)
-#define RILOG_CRIT(format, ...)
-#define RILOG_WARN(format, ...)
-#endif
-
-#define RILOG_NOTICE(format, ...) \
-    printf((format), ## __VA_ARGS__)
-
-#define RILOG_INFO(format, ...) \
-    printf((format), ## __VA_ARGS__)
-
-#ifdef DEBUG_PAT_AND_PMT
-#define RILOG_DEBUG(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_DEBUG(format, ...)
-#endif
-
-#define RILOG_TRACE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+IfsReturnCode GenerateFileNames(IfsHandle ifsHandle,
+        FileNumber fileNumber, char ** const pMpeg, char ** const pNdex);
+IfsReturnCode IfsOpenActualFiles(IfsHandle ifsHandle, FileNumber fileNumber,
+        const char * const mode);
+IfsReturnCode CloseActualFiles(IfsHandle ifsHandle);
+IfsReturnCode GetCurrentFileSizeAndCount(IfsHandle ifsHandle);
+IfsReturnCode GetCurrentFileParameters(IfsHandle ifsHandle);
+IfsReturnCode IfsPathNameInfo(const char * path, const char * name,
+        IfsInfo ** ppIfsInfo);
+IfsReturnCode IfsReadNdexEntryAt(IfsHandle ifsHandle, NumEntries entry);
+IfsReturnCode GetCurrentFileParameters(IfsHandle ifsHandle);
+IfsReturnCode IfsSeekToTimeImpl(IfsHandle ifsHandle, IfsDirect ifsDirect,
+        IfsClock * pIfsClock, NumPackets * pPosition);
+IfsReturnCode IfsSeekToTime(IfsHandle ifsHandle, IfsDirect ifsDirect,
+        IfsClock * pIfsClock, NumPackets * pPosition);
+IfsReturnCode IfsSeekToPacketImpl(IfsHandle ifsHandle, NumPackets virtPos,
+        IfsClock * pIfsClock);
+IfsReturnCode IfsSeekToPacket(IfsHandle ifsHandle, NumPackets virtPos,
+        IfsClock * pIfsClock);
 
 #endif

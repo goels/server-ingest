@@ -51,58 +51,107 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _RI_LOG_H
-#define _RI_LOG_H "$Rev: 141 $"
+#define _IFS_H264_PARSE_C "$Rev: 141 $"
 
-#define DEBUG_ERROR_LOGS
+#include <string.h>
 
-#include <stdio.h>
+#include "ifs_h264_impl.h"
+#include "ifs_h264_parse.h"
+#include "ifs_utils.h"
 
-#ifndef llong
-#define llong long long
-#endif
+extern IfsH264Index indexerSetting;
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned long uint24_t;
-typedef unsigned long uint32_t;
-typedef unsigned llong uint64_t;
+IfsBoolean h264_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
+{
+    ifsHandle->ifsState = IfsStateInitial;
 
-#define log4c_category_t void
+    return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
+}
 
-//LOG4C_API log4c_category_t * log4c_category_get(const char* a_name);
-#define log4c_category_get(a_name) NULL
+char * h264_ParseWhat(IfsHandle ifsHandle, char * temp,
+        const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean flags)
+{
+    //IfsH264Index ifsIndex = ifsHandle->entry.what;
 
-#define RILOG_FATAL(code, format, ...) \
-    printf((format), ## __VA_ARGS__), exit(code)
+    temp[0] = 0;
 
-#ifdef DEBUG_ERROR_LOGS
-#define RILOG_ERROR(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_CRIT(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_WARN(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_ERROR(format, ...)
-#define RILOG_CRIT(format, ...)
-#define RILOG_WARN(format, ...)
-#endif
+    if (ifsIndexDumpMode == IfsIndexDumpModeAll)
+    {
+        // TODO:
+    }
 
-#define RILOG_NOTICE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+    return temp;
+}
 
-#define RILOG_INFO(format, ...) \
-    printf((format), ## __VA_ARGS__)
+static unsigned long indexCounts[64] = { 0 };
 
-#ifdef DEBUG_PAT_AND_PMT
-#define RILOG_DEBUG(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_DEBUG(format, ...)
-#endif
+void h264_CountIndexes(ullong index)
+{
+    IfsH264Index ifsIndex = (IfsH264Index)index;
+    int i;
 
-#define RILOG_TRACE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+    for (i = 0; i < 64; i++)
+    {
+        IfsH264Index mask = ((IfsH264Index) 1) << i;
 
-#endif
+        // TODO: change to codec-specific counts here...
+        if (0)
+        {
+            // Do nothing
+        }
+        else if (mask & ifsIndex)
+            indexCounts[i]++;
+    }
+}
+
+void h264_DumpIndexes(void)
+{
+    int i;
+
+    printf("Occurances  Event\n");
+    printf("----------  -----\n");
+
+    for (i = 0; i < 64; i++)
+    {
+        char temp[256]; // ParseWhat
+        IfsH264CodecImpl localH264Codec = { 0 };
+        IfsHandleImpl tempHandleImpl;
+
+        tempHandleImpl.codec = (IfsCodec*)&localH264Codec;
+        g_static_mutex_init(&(tempHandleImpl.mutex));
+        tempHandleImpl.entry.what = ((IfsH264Index) 1) << i;
+
+        // TODO: set the correct container!
+        if (IfsSetContainer(&tempHandleImpl, IfsContainerTypeMpeg2Ts)
+                != IfsReturnCodeNoErrorReported)
+        {
+            printf("Problems setting ifs codec\n");
+            return;
+        }
+
+        if (IfsSetCodec(&tempHandleImpl, IfsCodecTypeH264)
+                != IfsReturnCodeNoErrorReported)
+        {
+            printf("Problems setting ifs codec\n");
+            return;
+        }
+
+        // TODO: change to codec-specific dump here...
+        if (0)
+        {
+            // Do nothing
+        }
+        else if (indexCounts[i])
+            printf("%10ld%s\n", indexCounts[i], tempHandleImpl.codec->h264->ParseWhat(&tempHandleImpl,
+                    temp, IfsIndexDumpModeDef, IfsFalse));
+    }
+}
+
+void h264_DumpHandle(const IfsHandle ifsHandle)
+{
+    printf("DUMP ifsHandle->codec->h264\n");
+    g_static_mutex_lock(&(ifsHandle->mutex));
+    printf("ifsHandle->ifsState         %d\n", ifsHandle->ifsState); // IfsState
+    g_static_mutex_unlock(&(ifsHandle->mutex));
+}
+

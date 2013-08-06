@@ -51,58 +51,15 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _RI_LOG_H
-#define _RI_LOG_H "$Rev: 141 $"
+#ifndef _IFS_MPEG2TS_PARSE_H
+#define _IFS_MPEG2TS_PARSE_H "$Rev: 141 $"
 
-#define DEBUG_ERROR_LOGS
+#include "ifs_impl.h"
 
-#include <stdio.h>
+IfsPid mpeg2ts_GetPid(IfsPacket * pIfsPacket);
 
-#ifndef llong
-#define llong long long
-#endif
+void mpeg2ts_ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7]);
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned long uint24_t;
-typedef unsigned long uint32_t;
-typedef unsigned llong uint64_t;
-
-#define log4c_category_t void
-
-//LOG4C_API log4c_category_t * log4c_category_get(const char* a_name);
-#define log4c_category_get(a_name) NULL
-
-#define RILOG_FATAL(code, format, ...) \
-    printf((format), ## __VA_ARGS__), exit(code)
-
-#ifdef DEBUG_ERROR_LOGS
-#define RILOG_ERROR(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_CRIT(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_WARN(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_ERROR(format, ...)
-#define RILOG_CRIT(format, ...)
-#define RILOG_WARN(format, ...)
-#endif
-
-#define RILOG_NOTICE(format, ...) \
-    printf((format), ## __VA_ARGS__)
-
-#define RILOG_INFO(format, ...) \
-    printf((format), ## __VA_ARGS__)
-
-#ifdef DEBUG_PAT_AND_PMT
-#define RILOG_DEBUG(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_DEBUG(format, ...)
-#endif
-
-#define RILOG_TRACE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+IfsBoolean mpeg2ts_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
 
 #endif

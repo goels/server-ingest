@@ -51,58 +51,50 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _RI_LOG_H
-#define _RI_LOG_H "$Rev: 141 $"
+// Private IFS Definitions
 
-#define DEBUG_ERROR_LOGS
+#ifndef _IFS_H265_IMPL_H
+#define _IFS_H265_IMPL_H "$Rev: 141 $"
 
+#include <glib.h>
 #include <stdio.h>
+#include "IfsIntf.h"
 
-#ifndef llong
-#define llong long long
-#endif
+typedef enum
+{
+    IfsIndexStartH265Audio = 1uLL << 0,  // AUDIO
+    IfsIndexStartH265Video = 1uLL << 63, // VIDEO
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned long uint24_t;
-typedef unsigned long uint32_t;
-typedef unsigned llong uint64_t;
+} IfsH265Index;
 
-#define log4c_category_t void
+typedef enum
+{
 
-//LOG4C_API log4c_category_t * log4c_category_get(const char* a_name);
-#define log4c_category_get(a_name) NULL
+    IfsH265IndexerSettingVerbose =  // index all possible events
+        IfsIndexStartH265Video | IfsIndexStartH265Audio | 0,
 
-#define RILOG_FATAL(code, format, ...) \
-    printf((format), ## __VA_ARGS__), exit(code)
+    IfsH265IndexerSettingDefault =
+        IfsIndexStartH265Video | IfsIndexStartH265Audio | 0,
 
-#ifdef DEBUG_ERROR_LOGS
-#define RILOG_ERROR(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_CRIT(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_WARN(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_ERROR(format, ...)
-#define RILOG_CRIT(format, ...)
-#define RILOG_WARN(format, ...)
-#endif
+} IfsH265IndexerSetting;
 
-#define RILOG_NOTICE(format, ...) \
-    printf((format), ## __VA_ARGS__)
 
-#define RILOG_INFO(format, ...) \
-    printf((format), ## __VA_ARGS__)
+typedef enum
+{ // ------- ------- ------- ------- ------- ------- ------- -------
+    IfsH265StateInitial,
 
-#ifdef DEBUG_PAT_AND_PMT
-#define RILOG_DEBUG(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_DEBUG(format, ...)
-#endif
+} IfsH265State;
 
-#define RILOG_TRACE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+typedef struct IfsH265CodecImpl
+{
+    IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+    char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
+                const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
+    void (*CountIndexes)(ullong ifsIndex);
+    void (*DumpIndexes)(void);
+    void (*DumpHandle)(IfsHandle ifsHandle);
+
+} IfsH265CodecImpl;
+
 
 #endif

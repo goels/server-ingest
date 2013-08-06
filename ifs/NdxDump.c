@@ -59,9 +59,14 @@
 
 #include <glib.h>
 
-#include "IfsImpl.h"
-#include "IfsParse.h"
 #include "RemapImpl.h"
+
+#include "ifs_file.h"
+#include "ifs_impl.h"
+#include "ifs_h262_parse.h"
+#include "ifs_h264_parse.h"
+#include "ifs_h265_parse.h"
+#include "ifs_utils.h"
 
 #ifndef MAX_PATH
 #define MAX_PATH 260
@@ -72,6 +77,7 @@ static RemapPid thePmtPid = REMAP_UNDEFINED_PID;
 static RemapPid theVideoPid = REMAP_UNDEFINED_PID;
 static IfsHandle ifsHandle;
 static IfsBoolean isAnMpegFile = IfsFalse;
+static IfsCodecType gCodecType = IfsCodecTypeError;
 
 void DumpBadCodes(void);
 void DumpBadCodes(void)
@@ -171,6 +177,8 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
         strcpy(inputFile, argv[1]);
         if (strstr(argv[1], ".mpg"))
         {
+            // .mpg or .ts means we're looking at MPEG2 PS or TS encapsulated
+            gCodecType = IfsCodecTypeH262;
             printf("Opening mpeg file...\n");
             FILE * const pInFile = fopen(inputFile, "rb");
 
@@ -306,14 +314,30 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
 
                     rewind(pInFile);
 
-                    IfsSetMode(IfsIndexDumpModeOff, IfsIndexerSettingDefault);
-
                     if (IfsOpenWriter(".", NULL, 0, &ifsHandle)
                             != IfsReturnCodeNoErrorReported)
                     {
                         printf("Problems opening ifs writer\n");
                         return IfsTrue;
                     }
+
+                    // TODO: set the correct container!
+                    if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ts)
+                            != IfsReturnCodeNoErrorReported)
+                    {
+                        printf("Problems setting ifs container\n");
+                        return IfsTrue;
+                    }
+
+                    if (IfsSetCodec(ifsHandle, gCodecType)
+                            != IfsReturnCodeNoErrorReported)
+                    {
+                        printf("Problems setting ifs codec\n");
+                        return IfsTrue;
+                    }
+
+                    IfsSetMode(IfsIndexDumpModeOff, IfsH262IndexerSettingDefault);
+
                     if (IfsStart(ifsHandle, theVideoPid, 0)
                             != IfsReturnCodeNoErrorReported)
                     {
@@ -383,6 +407,8 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
         }
         else
         {
+            // TODO: discover the CODEC from the file!
+            gCodecType = IfsCodecTypeH262;
             printf("Processing one arg...");
             IfsReturnCode ifsReturnCode;
             size_t length = strlen(inputFile);
@@ -403,8 +429,7 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
                 //IfsDumpHandle(ifsHandle);
                 printf("Opened file for processing...");
                 return IfsFalse;
-
-            }
+}
             else
                 printf("IfsPathNameInfo failed with error \"%s\"\n\n",
                         IfsReturnCodeToString(ifsReturnCode));
@@ -425,322 +450,16 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
     return IfsTrue;
 }
 
-static unsigned long indexCounts[64] =
-{ 0 };
-static unsigned long iPictureCount = 0;
-static unsigned long pPictureCount = 0;
-static unsigned long bPictureCount = 0;
-static unsigned long iSequence = 0;
-static unsigned long pSequence = 0;
-static unsigned long pictCodeCounts[64] =
-{ 0 };
-static unsigned long videoNonePts = 0;
-static unsigned long videoWithPts = 0;
-
-static void CountIndexes(IfsIndex ifsIndex)
-{
-    // Special cases:
-    //
-    //  IfsIndexStartPicture
-    //
-    //  16  0000000000018000 = PdeBit   StartIpicture
-    //  17  0000000000028000 = PdeBit   StartPpicture
-    //  18  0000000000038000 = PdeBit   StartBpicture
-    //
-    //  IfsIndexExtSequence
-    //      IfsIndexInfoProgSeq
-    //
-    //  25  0000000002808000 = PdeBit   StartExtension  ExtSequence   i
-    //  26  0400000002808000 = PdeBit   StartExtension  ExtSequence   p
-    //
-    //  IfsIndexExtPictCode
-    //      IfsIndexInfoProgFrame
-    //      IfsIndexInfoStructure
-    //      IfsIndexInfoProgRep
-    //
-    //  32  0000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  0
-    //  33  0800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  1
-    //  34  1000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  2
-    //  35  1800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  3
-    //  36  2000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  4
-    //  37  2800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  5
-    //  38  3000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  6
-    //  39  3800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  7
-    //  40  4000000080808000 = PdeBit   StartExtension  ExtPictCode   iT
-    //  41  4800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD  9
-    //  42  5000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 10
-    //  43  5800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 11
-    //  44  6000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 12
-    //  45  6800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 13
-    //  46  7000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 14
-    //  47  7800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 15
-    //  48  8000000080808000 = PdeBit   StartExtension  ExtPictCode   iB
-    //  49  8800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 17
-    //  50  9000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 18
-    //  51  9800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 19
-    //  52  A000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 20
-    //  53  A800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 21
-    //  54  B000000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 22
-    //  55  B800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 23
-    //  56  C000000080808000 = PdeBit   StartExtension  ExtPictCode   iBT
-    //  57  C800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 25
-    //  58  D000000080808000 = PdeBit   StartExtension  ExtPictCode   iTB
-    //  59  D800000080808000 = PdeBit   StartExtension  ExtPictCode   BAD 27
-    //  60  E000000080808000 = PdeBit   StartExtension  ExtPictCode   pBT
-    //  61  E800000080808000 = PdeBit   StartExtension  ExtPictCode   pBTB
-    //  62  F000000080808000 = PdeBit   StartExtension  ExtPictCode   pTB
-    //  63  F800000080808000 = PdeBit   StartExtension  ExtPictCode   pTBT
-    //
-    //  IfsIndexStartVideo
-    //      IfsIndexInfoContainsPts
-    //
-    //  76  0000100000008000 = PdeBit   StartVideo
-    //  77  0200100000008000 = PdeBit   StartVideo(0)
-    //
-    // Normal cases:
-    //
-    //   0  0000000000000100 = BadSync
-    //   1  0000000000000200 = TpChange
-    //   2  0000000000000400 = PusiBit
-    //   3  0000000000000800 = TeiBit
-    //
-    //   4  0000000000001000 = CcError
-    //   5  0000000000002000 = ScChange
-    //   6  0000000000004000 = AfeBit
-    //  15  0000000000008000 = PdeBit
-    //
-    //   7  0000000000004001 = AfeBit   AdaptAfeeBit
-    //   8  0000000000004002 = AfeBit   AdaptTpdeBit
-    //   9  0000000000004004 = AfeBit   AdaptSpeBit
-    //  10  0000000000004008 = AfeBit   AdaptOpcreBit
-    //
-    //  11  0000000000004010 = AfeBit   AdaptPcreBit(0)
-    //  12  0000000000004020 = AfeBit   AdaptEspChange
-    //  13  0000000000004040 = AfeBit   AdaptRaiBit
-    //  14  0000000000004080 = AfeBit   AdaptDiBit
-    //
-    //  19  0000000000048000 = PdeBit   StartUserData
-    //  20  0000000000088000 = PdeBit   StartSeqHeader
-    //
-    //  21  0000000000108000 = PdeBit   StartSeqError
-    //  22  0000000000208000 = PdeBit   StartSeqEnd
-    //  23  0000000000408000 = PdeBit   StartGroup
-    //  24  0000000001808000 = PdeBit   StartExtension  ExtReserved
-    //  27  0000000004808000 = PdeBit   StartExtension  ExtDisplay
-    //  28  0000000008808000 = PdeBit   StartExtension  ExtQuantMat
-    //  29  0000000010808000 = PdeBit   StartExtension  ExtCopyright
-    //  30  0000000020808000 = PdeBit   StartExtension  ExtScalable
-    //  31  0000000040808000 = PdeBit   StartExtension  ExtPictOther
-    //
-    //  64  0000000100008000 = PdeBit   StartSlice
-    //  65  0000000200008000 = PdeBit   StartReservedB0
-    //  66  0000000400008000 = PdeBit   StartReservedB1
-    //  67  0000000800008000 = PdeBit   StartReservedB6
-    //
-    //  68  0000001000008000 = PdeBit   StartMpegEnd
-    //  69  0000002000008000 = PdeBit   StartPack
-    //  70  0000004000008000 = PdeBit   StartSysHeader
-    //  71  0000008000008000 = PdeBit   StartProgramMap
-    //
-    //  72  0000010000008000 = PdeBit   StartPrivate1
-    //  73  0000020000008000 = PdeBit   StartPadding
-    //  74  0000040000008000 = PdeBit   StartPrivate2
-    //  75  0000080000008000 = PdeBit   StartAudio
-    //
-    //  78  0000200000008000 = PdeBit   StartEcm
-    //  79  0000400000008000 = PdeBit   StartEmm
-    //  80  0000800000008000 = PdeBit   StartDsmCc
-    //
-    //  81  0001000000008000 = PdeBit   Start13522
-    //  82  0002000000008000 = PdeBit   StartItuTypeA
-    //  83  0004000000008000 = PdeBit   StartItuTypeB
-    //  84  0008000000008000 = PdeBit   StartItuTypeC
-    //
-    //  85  0010000000008000 = PdeBit   StartItuTypeD
-    //  86  0020000000008000 = PdeBit   StartItuTypeE
-    //  87  0040000000008000 = PdeBit   StartAncillary
-    //  88  0080000000008000 = PdeBit   StartRes_FA_FE
-    //
-    //  89  0100000000008000 = PdeBit   StartDirectory
-
-    int i;
-
-    for (i = 0; i < 64; i++)
-    {
-        IfsIndex mask = ((IfsIndex) 1) << i;
-
-        if (mask & IfsIndexStartPicture0)
-        {
-            switch (ifsIndex & IfsIndexStartPicture)
-            {
-            case IfsIndexStartPicture0:
-                iPictureCount++;
-                break;
-            case IfsIndexStartPicture1:
-                pPictureCount++;
-                break;
-            case IfsIndexStartPicture:
-                bPictureCount++;
-                break;
-            }
-        }
-        else if (mask & IfsIndexExtSequence)
-        {
-            if (ifsIndex & IfsIndexExtSequence)
-            {
-                switch (ifsIndex & IfsIndexInfoProgSeq)
-                {
-                case 0:
-                    iSequence++;
-                    break;
-                case IfsIndexInfoProgSeq:
-                    pSequence++;
-                    break;
-                }
-            }
-        }
-        else if (mask & IfsIndexExtPictCode)
-        {
-            if (ifsIndex & IfsIndexExtPictCode)
-            {
-                size_t code = ((ifsIndex & IfsIndexInfoProgSeq ? 32 : 0)
-                        | (ifsIndex & IfsIndexInfoStructure1 ? 16 : 0)
-                        | (ifsIndex & IfsIndexInfoStructure0 ? 8 : 0)
-                        | (ifsIndex & IfsIndexInfoProgFrame ? 4 : 0)
-                        | (ifsIndex & IfsIndexInfoTopFirst ? 2 : 0) | (ifsIndex
-                        & IfsIndexInfoRepeatFirst ? 1 : 0));
-                pictCodeCounts[code]++;
-            }
-        }
-        else if (mask & IfsIndexStartVideo)
-        {
-            if (ifsIndex & IfsIndexStartVideo)
-            {
-                switch (ifsIndex & IfsIndexInfoContainsPts)
-                {
-                case 0:
-                    videoNonePts++;
-                    break;
-                case IfsIndexInfoContainsPts:
-                    videoWithPts++;
-                    break;
-                }
-            }
-        }
-        else if (mask & (IfsIndexStartPicture1 | IfsIndexInfoProgSeq
-                | IfsIndexInfoProgFrame | IfsIndexInfoStructure
-                | IfsIndexInfoProgRep | IfsIndexInfoContainsPts))
-        {
-            // Do nothing
-        }
-        else if (mask & ifsIndex)
-            indexCounts[i]++;
-    }
-}
-
-static void DumpIndexes(void)
-{
-    int i;
-
-    printf("Occurances  Event\n");
-    printf("----------  -----\n");
-
-    for (i = 0; i < 64; i++)
-    {
-        char temp[256]; // ParseWhat
-        IfsHandleImpl tempHandleImpl;
-        tempHandleImpl.entry.what = ((IfsIndex) 1) << i;
-
-        if (tempHandleImpl.entry.what & IfsIndexStartPicture0)
-        {
-            if (iPictureCount)
-            {
-                tempHandleImpl.entry.what = IfsIndexStartPicture0;
-                printf("%10ld  %s frame\n", iPictureCount, ParseWhat(
-                        &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
-            }
-            if (pPictureCount)
-            {
-                tempHandleImpl.entry.what = IfsIndexStartPicture1;
-                printf("%10ld  %s frame\n", pPictureCount, ParseWhat(
-                        &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
-            }
-            if (bPictureCount)
-            {
-                tempHandleImpl.entry.what = IfsIndexStartPicture;
-                printf("%10ld  %s frame\n", bPictureCount, ParseWhat(
-                        &tempHandleImpl, temp, IfsIndexDumpModeDef, IfsFalse));
-            }
-        }
-        else if (tempHandleImpl.entry.what & IfsIndexExtSequence)
-        {
-            if (iSequence)
-            {
-                printf("%10ld%s\n", iSequence, ParseWhat(&tempHandleImpl, temp,
-                        IfsIndexDumpModeDef, IfsFalse));
-            }
-            if (pSequence)
-            {
-                tempHandleImpl.entry.what |= IfsIndexInfoProgSeq;
-                printf("%10ld%s\n", pSequence, ParseWhat(&tempHandleImpl, temp,
-                        IfsIndexDumpModeDef, IfsFalse));
-            }
-        }
-        else if (tempHandleImpl.entry.what & IfsIndexExtPictCode)
-        {
-            IfsIndex j;
-
-            for (j = 0; j < 64; j++)
-            {
-                if (pictCodeCounts[j])
-                {
-                    tempHandleImpl.entry.what = (IfsIndexExtPictCode
-                            | (j & 32 ? IfsIndexInfoProgSeq : 0)
-                            | (j & 16 ? IfsIndexInfoStructure1 : 0)
-                            | (j & 8 ? IfsIndexInfoStructure0 : 0)
-                            | (j & 4 ? IfsIndexInfoProgFrame : 0)
-                            | (j & 2 ? IfsIndexInfoTopFirst : 0)
-                            | (j & 1 ? IfsIndexInfoRepeatFirst : 0));
-
-                    printf("%10ld%s\n", pictCodeCounts[j], ParseWhat(
-                            &tempHandleImpl, temp, IfsIndexDumpModeDef,
-                            IfsFalse));
-                }
-            }
-        }
-        else if (tempHandleImpl.entry.what & IfsIndexStartVideo)
-        {
-            if (videoNonePts)
-            {
-                printf("%10ld%s\n", videoNonePts, ParseWhat(&tempHandleImpl,
-                        temp, IfsIndexDumpModeDef, IfsFalse));
-            }
-            if (videoWithPts)
-            {
-                tempHandleImpl.entry.what |= IfsIndexInfoContainsPts;
-                printf("%10ld%s\n", videoWithPts, ParseWhat(&tempHandleImpl,
-                        temp, IfsIndexDumpModeDef, IfsFalse));
-            }
-        }
-        else if (tempHandleImpl.entry.what & (IfsIndexStartPicture1
-                | IfsIndexInfoProgSeq | IfsIndexInfoProgFrame
-                | IfsIndexInfoStructure | IfsIndexInfoProgRep
-                | IfsIndexInfoContainsPts))
-        {
-            // Do nothing
-        }
-        else if (indexCounts[i])
-            printf("%10ld%s\n", indexCounts[i], ParseWhat(&tempHandleImpl,
-                    temp, IfsIndexDumpModeDef, IfsFalse));
-    }
-}
-
 int main(int argc, char *argv[])
 {
     IfsClock duration;
     time_t seconds;
     IfsIndexEntry firstEntry, lastEntry;
     NumEntries numEntries = 0;
+    void (*countIndexes)(ullong ifsIndex) = NULL;
+    void (*dumpIndexes)(void) = NULL;
+    char* (*parseWhat)(IfsHandle ifsHandle, char * temp,
+        const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean) = NULL;
 
     printf("processing cmd line args...\n");
 
@@ -749,7 +468,33 @@ int main(int argc, char *argv[])
 
     printf("starting analysis...\n");
 
-    IfsSetMode(IfsIndexDumpModeDef, IfsIndexerSettingVerbose);
+    switch (ifsHandle->codecType)
+    {
+        case IfsCodecTypeH261:
+        case IfsCodecTypeH262:
+        case IfsCodecTypeH263:
+            IfsSetMode(IfsIndexDumpModeDef, IfsH262IndexerSettingVerbose);
+            parseWhat = ifsHandle->codec->h262->ParseWhat;
+            countIndexes = ifsHandle->codec->h262->CountIndexes;
+            dumpIndexes = ifsHandle->codec->h262->DumpIndexes;
+            break;
+        case IfsCodecTypeH264:
+            IfsSetMode(IfsIndexDumpModeDef, IfsH264IndexerSettingVerbose);
+            parseWhat = ifsHandle->codec->h264->ParseWhat;
+            countIndexes = ifsHandle->codec->h264->CountIndexes;
+            dumpIndexes = ifsHandle->codec->h264->DumpIndexes;
+            break;
+        case IfsCodecTypeH265:
+            IfsSetMode(IfsIndexDumpModeDef, IfsH265IndexerSettingVerbose);
+            parseWhat = ifsHandle->codec->h265->ParseWhat;
+            countIndexes = ifsHandle->codec->h265->CountIndexes;
+            dumpIndexes = ifsHandle->codec->h265->DumpIndexes;
+            break;
+        default:
+            printf("IfsReturnCodeBadInputParameter: ifsHandle->codec "
+                   "not set in line %d of %s\n", __LINE__, __FILE__);
+            exit(0);
+    }
 
     firstEntry = ifsHandle->entry;
 
@@ -767,9 +512,9 @@ int main(int argc, char *argv[])
             do
             {
                 char temp[256]; // ParseWhat
-                CountIndexes(ifsHandle->entry.what);
+                countIndexes(ifsHandle->entry.what);
                 printf("%6ld/%6ld  %s\n", ifsHandle->entry.realWhere,
-                        ifsHandle->entry.virtWhere, ParseWhat(ifsHandle, temp,
+                        ifsHandle->entry.virtWhere, parseWhat(ifsHandle, temp,
                                 IfsIndexDumpModeDef, IfsFalse));
                 numEntries++;
 
@@ -791,11 +536,11 @@ int main(int argc, char *argv[])
             {
                 char temp1[32]; // IfsToSecs only
                 char temp2[256]; // ParseWhat
-                CountIndexes(ifsHandle->entry.what);
+                countIndexes(ifsHandle->entry.what);
                 printf("%6ld/%6ld  %s  %s\n", ifsHandle->entry.realWhere,
                         ifsHandle->entry.virtWhere, IfsToSecs(
                                 ifsHandle->entry.when, temp1),
-                        ParseWhat(ifsHandle, temp2, IfsIndexDumpModeDef,
+                        parseWhat(ifsHandle, temp2, IfsIndexDumpModeDef,
                                 IfsFalse));
                 numEntries++;
 
@@ -826,7 +571,7 @@ int main(int argc, char *argv[])
     duration = lastEntry.when - firstEntry.when;
 
     printf("\n");
-    DumpIndexes();
+    dumpIndexes();
     printf("\n");
 
     if (isAnMpegFile)
@@ -839,9 +584,11 @@ int main(int argc, char *argv[])
         printf("Rate of indexing  %20.9f packets/entry\n",
                 ((lastEntry.virtWhere - firstEntry.virtWhere) * 1.0)
                         / (numEntries * 1.0));
+#if 0
         printf("I frame rate      %20.9f frames/I-frame\n",
                 (iPictureCount ? ((iPictureCount + pPictureCount
                         + bPictureCount) * 1.0) / (iPictureCount * 1.0) : 0.0));
+#endif
     }
     else
     {
@@ -863,9 +610,11 @@ int main(int argc, char *argv[])
         printf("                  %20.9f packets/entry\n",
                 ((lastEntry.virtWhere - firstEntry.virtWhere) * 1.0)
                         / (numEntries * 1.0));
+#if 0
         printf("I frame rate      %20.9f frames/I-frame\n",
                 (iPictureCount ? ((iPictureCount + pPictureCount
                         + bPictureCount) * 1.0) / (iPictureCount * 1.0) : 0.0));
+#endif
     }
     return IfsClose(ifsHandle);
 }

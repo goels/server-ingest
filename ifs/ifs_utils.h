@@ -51,17 +51,27 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _IFS_PARSE_H
-#define _IFS_PARSE_H "$Rev: 141 $"
+// IFS Utility Function Definitions
 
-#include "IfsImpl.h"
+#ifndef _IFS_UTILS_H
+#define _IFS_UTILS_H "$Rev: 141 $"
 
-IfsBoolean IfsParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+#include <glib.h>
+#include <stdio.h>
 
-char
-        * ParseWhat(IfsHandle ifsHandle, char * temp,
-                const IfsIndexDumpMode ifsIndexDumpMode,
-                const IfsBoolean dumpPcrAndPts);
-void SetIndexer(const IfsIndexerSetting ifsIndexerSetting);
+#include "ifs_impl.h"
+
+#define IFS_UNDEFINED_BYTE ((unsigned char)-1)
+
+ullong IfsGetWhatAll(void);
+const char * IfsReturnCodeToString(const IfsReturnCode ifsReturnCode);
+char * IfsToSecs(const IfsClock ifsClock, char * const temp);
+char * IfsLongLongToString(ullong value, char * const temp);
+void IfsDumpInfo(const IfsInfo * const pIfsInfo);
+void IfsDumpHandle(const IfsHandle ifsHandle);
+void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
+        const ullong ifsIndexerSetting);
+IfsReturnCode IfsFreeInfo(IfsInfo * pIfsInfo);
+IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, IfsInfo ** ppIfsInfo);
 
 #endif

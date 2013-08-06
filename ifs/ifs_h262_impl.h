@@ -53,14 +53,12 @@
 
 // Private IFS Definitions
 
-#ifndef _IFS_IMPL_H
-#define _IFS_IMPL_H "$Rev: 141 $"
+#ifndef _IFS_H262_IMPL_H
+#define _IFS_H262_IMPL_H "$Rev: 141 $"
 
 #include <glib.h>
 #include <stdio.h>
 #include "IfsIntf.h"
-
-#define IFS_UNDEFINED_BYTE ((unsigned char)-1)
 
 typedef enum
 {
@@ -111,43 +109,43 @@ typedef enum
 
 #ifdef DEBUG_ALL_PES_CODES
 
-IfsIndexStartSlice = 1uLL << 32, // SLICE                     01 - AF
-IfsIndexStartReservedB0 = 1uLL << 33, // RESERVED                  B0
-IfsIndexStartReservedB1 = 1uLL << 34, // RESERVED                  B1
-IfsIndexStartReservedB6 = 1uLL << 35, // RESERVED                  B6
-IfsIndexStartMpegEnd = 1uLL << 36, // MPEG_PROGRAM_END_CODE     B9
-IfsIndexStartPack = 1uLL << 37, // PACK_START_CODE           BA
-IfsIndexStartSysHeader = 1uLL << 38, // SYSTEM_HEADER_START_CODE  BB
-IfsIndexStartProgramMap = 1uLL << 39, // PROGRAM_STREAM_MAP        BC
-IfsIndexStartPrivate1 = 1uLL << 40, // PRIVATE_STREAM_1          BD
-IfsIndexStartPadding = 1uLL << 41, // PADDING_STREAM            BE
-IfsIndexStartPrivate2 = 1uLL << 42, // PRIVATE_STREAM_2          BF
-IfsIndexStartAudio = 1uLL << 43, // AUDIO                     C0 - DF
-IfsIndexStartVideo = 1uLL << 44, // VIDEO                     E0 - EF
-IfsIndexStartEcm = 1uLL << 45, // ECM_STREAM                F0
-IfsIndexStartEmm = 1uLL << 46, // EMM_STREAM                F1
-IfsIndexStartDsmCc = 1uLL << 47, // DSM_CC_STREAM             F2
-IfsIndexStart13522 = 1uLL << 48, // ISO_IEC_13522_STREAM      F3
-IfsIndexStartItuTypeA = 1uLL << 49, // ITU_T_REC_H_222_1_TYPE_A  F4
-IfsIndexStartItuTypeB = 1uLL << 50, // ITU_T_REC_H_222_1_TYPE_B  F5
-IfsIndexStartItuTypeC = 1uLL << 51, // ITU_T_REC_H_222_1_TYPE_C  F6
-IfsIndexStartItuTypeD = 1uLL << 52, // ITU_T_REC_H_222_1_TYPE_D  F7
-IfsIndexStartItuTypeE = 1uLL << 53, // ITU_T_REC_H_222_1_TYPE_E  F8
-IfsIndexStartAncillary = 1uLL << 54, // ANCILLARY_STREAM          F9
-IfsIndexStartRes_FA_FE = 1uLL << 55, // RESERVED                  FA - FE
-IfsIndexStartDirectory = 1uLL << 56, // PROGRAM_STREAM_DIRECTORY  FF
+    IfsIndexStartSlice = 1uLL << 32, // SLICE                     01 - AF
+    IfsIndexStartReservedB0 = 1uLL << 33, // RESERVED                  B0
+    IfsIndexStartReservedB1 = 1uLL << 34, // RESERVED                  B1
+    IfsIndexStartReservedB6 = 1uLL << 35, // RESERVED                  B6
+    IfsIndexStartMpegEnd = 1uLL << 36, // MPEG_PROGRAM_END_CODE     B9
+    IfsIndexStartPack = 1uLL << 37, // PACK_START_CODE           BA
+    IfsIndexStartSysHeader = 1uLL << 38, // SYSTEM_HEADER_START_CODE  BB
+    IfsIndexStartProgramMap = 1uLL << 39, // PROGRAM_STREAM_MAP        BC
+    IfsIndexStartPrivate1 = 1uLL << 40, // PRIVATE_STREAM_1          BD
+    IfsIndexStartPadding = 1uLL << 41, // PADDING_STREAM            BE
+    IfsIndexStartPrivate2 = 1uLL << 42, // PRIVATE_STREAM_2          BF
+    IfsIndexStartAudio = 1uLL << 43, // AUDIO                     C0 - DF
+    IfsIndexStartVideo = 1uLL << 44, // VIDEO                     E0 - EF
+    IfsIndexStartEcm = 1uLL << 45, // ECM_STREAM                F0
+    IfsIndexStartEmm = 1uLL << 46, // EMM_STREAM                F1
+    IfsIndexStartDsmCc = 1uLL << 47, // DSM_CC_STREAM             F2
+    IfsIndexStart13522 = 1uLL << 48, // ISO_IEC_13522_STREAM      F3
+    IfsIndexStartItuTypeA = 1uLL << 49, // ITU_T_REC_H_222_1_TYPE_A  F4
+    IfsIndexStartItuTypeB = 1uLL << 50, // ITU_T_REC_H_222_1_TYPE_B  F5
+    IfsIndexStartItuTypeC = 1uLL << 51, // ITU_T_REC_H_222_1_TYPE_C  F6
+    IfsIndexStartItuTypeD = 1uLL << 52, // ITU_T_REC_H_222_1_TYPE_D  F7
+    IfsIndexStartItuTypeE = 1uLL << 53, // ITU_T_REC_H_222_1_TYPE_E  F8
+    IfsIndexStartAncillary = 1uLL << 54, // ANCILLARY_STREAM          F9
+    IfsIndexStartRes_FA_FE = 1uLL << 55, // RESERVED                  FA - FE
+    IfsIndexStartDirectory = 1uLL << 56, // PROGRAM_STREAM_DIRECTORY  FF
 
-IfsIndexInfoContainsPts = 1uLL << 57,
-IfsIndexInfoProgSeq = 1uLL << 58,
-IfsIndexInfoRepeatFirst = 1uLL << 59,
-IfsIndexInfoTopFirst = 1uLL << 60,
-IfsIndexInfoProgFrame = 1uLL << 61,
-IfsIndexInfoStructure0 = 1uLL << 62,
-IfsIndexInfoStructure1 = 1uLL << 63,
+    IfsIndexInfoContainsPts = 1uLL << 57,
+    IfsIndexInfoProgSeq = 1uLL << 58,
+    IfsIndexInfoRepeatFirst = 1uLL << 59,
+    IfsIndexInfoTopFirst = 1uLL << 60,
+    IfsIndexInfoProgFrame = 1uLL << 61,
+    IfsIndexInfoStructure0 = 1uLL << 62,
+    IfsIndexInfoStructure1 = 1uLL << 63,
 
 #endif
 
-} IfsIndex;
+} IfsH262Index;
 
 #define IfsIndexStartPicture  (IfsIndexStartPicture0|IfsIndexStartPicture1)
 #define IfsIndexInfoStructure (IfsIndexInfoStructure0|IfsIndexInfoStructure1)
@@ -156,7 +154,7 @@ IfsIndexInfoStructure1 = 1uLL << 63,
 typedef enum
 {
 
-    IfsIndexerSettingVerbose = // index all possible events
+    IfsH262IndexerSettingVerbose = // index all possible events
 
     // Adaptation events:
 
@@ -225,7 +223,7 @@ typedef enum
 
             0,
 
-    IfsIndexerSettingUnitest =
+    IfsH262IndexerSettingUnitest =
 
     // Adaptation events:
 
@@ -293,7 +291,7 @@ typedef enum
 
             0,
 
-    IfsIndexerSettingDefPlus = // Default plus PCR and PTS indexing
+    IfsH262IndexerSettingDefPlus = // Default plus PCR and PTS indexing
 
     IfsIndexAdaptPcreBit | IfsIndexStartPicture | IfsIndexStartSeqHeader |
 
@@ -306,20 +304,14 @@ typedef enum
 
             0,
 
-    IfsIndexerSettingDefault =
+    IfsH262IndexerSettingDefault =
 
     IfsIndexStartPicture | IfsIndexStartSeqHeader |
 
     0,
 
-} IfsIndexerSetting;
+} IfsH262IndexerSetting;
 
-typedef enum
-{
-
-    IfsIndexDumpModeOff = 0, IfsIndexDumpModeDef = 1, IfsIndexDumpModeAll = 2,
-
-} IfsIndexDumpMode;
 
 typedef enum // next 00 next 01 next B5 next EX next 1X next 8X   else   where
 { // ------- ------- ------- ------- ------- ------- ------- -------
@@ -350,120 +342,27 @@ typedef enum // next 00 next 01 next B5 next EX next 1X next 8X   else   where
     IfsStateGotVid9,
 //                                                 Initial buf[13]
 
-} IfsState;
+} IfsH262State;
 
-typedef enum
+typedef struct IfsH262CodecImpl
 {
-    IfsReadTypePrevious = -1, IfsReadTypeNearest = 0, IfsReadTypeNext = +1,
+    IfsBoolean (*ParsePacket)(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+    char* (*ParseWhat)(IfsHandle ifsHandle, char * temp,
+                const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
+    void (*CountIndexes)(ullong ifsIndex);
+    void (*DumpIndexes)(void);
+    void (*DumpHandle)(IfsHandle ifsHandle);
 
-} IfsReadType;
-
-typedef struct IfsIndexEntry
-{
-    IfsClock when; // nanoseconds
-    IfsIndex what;
-    NumPackets realWhere;
-    NumPackets virtWhere;
-
-#ifndef DEBUG_ALL_PES_CODES
-    unsigned long pad;
-#endif
-
-} IfsIndexEntry;
-
-typedef unsigned long FileNumber;
-
-typedef struct IfsHandleImpl
-{
-    // The input parameters
-    char * path;
-    char * name;
-
-    // Current logical file information
-    NumBytes mpegSize; // current total number of MPEG bytes
-    NumBytes ndexSize; // current total number of NDEX bytes
-    char * both; // path + name
-    char * mpeg; // path + name + filename.mpg
-    char * ndex; // path + name + filename.ndx
-    FileNumber begFileNumber; // lowest file name/number
-    FileNumber endFileNumber; // highest file name/number
-    FILE * pMpeg; // current MPEG file
-    FILE * pNdex; // current NDEX file
-    NumPackets realLoc; // current real location in current file, offset in packets
-    NumPackets virtLoc; // current virtual location in current file, offset in packets
-    IfsBoolean isReading; // true if this a reader, false if it is a writer
-    IfsClock begClock; // clock at beg of recording, in nanoseconds
-    IfsClock endClock; // clock at end of recording, in nanoseconds
-    IfsClock nxtClock; // clock at next file change, in nanoseconds
-
-    // Indexer settings and state
-    IfsIndexEntry entry;
-#ifdef DEBUG_ALL_PES_CODES
-    IfsIndex extWhat;
-    IfsBoolean isProgSeq;
-    long pad1;
-#endif
     IfsPcr ifsPcr;
     IfsPts ifsPts;
     IfsPid videoPid;
     IfsPid audioPid;
-    IfsState ifsState;
     unsigned char oldEsp;
     unsigned char oldSc;
     unsigned char oldTp;
     unsigned char oldCc;
 
-    // Seek state, all real, no virtual numbers
-    NumPackets maxPacket;
-    FileNumber curFileNumber;
-    NumEntries entryNum;
-    NumEntries maxEntry;
+} IfsH262CodecImpl;
 
-    // Append state, all real, no virtual numbers
-    FileNumber appendFileNumber;
-    NumPackets appendPacketNum;
-    NumEntries appendEntryNum;
-    NumPackets appendIndexShift;
-    NumPackets appendPrevFiles;
-    long pad2;
-
-    IfsTime maxSize; // in seconds, 0 = value not used
-
-    int numEmptyFreads;  // the number of times we performed an fread and got 0
-
-    GStaticMutex mutex;  // TSB thread versus IFS thread protection
-
-} IfsHandleImpl;
-
-IfsIndex IfsGetWhatAll(void);
-void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
-        const IfsIndexerSetting ifsIndexerSetting);
-
-IfsReturnCode IfsOpenActualFiles(IfsHandle ifsHandle, FileNumber fileNumber,
-        const char * const mode);
-
-IfsReturnCode IfsSeekToTimeImpl // Must call GetCurrentFileParameters() before calling this function
-        (IfsHandle ifsHandle, // Input
-                IfsDirect ifsDirect, // Input  either IfsDirectBegin,
-                //        IfsDirectEnd or IfsDirectEither
-                IfsClock * pIfsClock, // Input  requested/Output actual, in nanoseconds
-                NumPackets * pPosition // Output packet position, optional, can be NULL
-        );
-
-IfsReturnCode IfsSeekToPacketImpl // Must call GetCurrentFileSizeAndCount() before calling this function
-        (IfsHandle ifsHandle, // Input
-                NumPackets virtPos, // Input desired (virtual) packet position
-                IfsClock * pIfsClock // Output clock value, optional, can be NULL
-        );
-
-IfsReturnCode IfsReadPicture // Must call IfsSeekToTime() before calling this function
-        (IfsHandle ifsHandle, // Input
-                IfsPcr ifsPcr, // Input
-                IfsPts ifsPts, // Input
-                IfsReadType ifsReadType, // Input
-                NumPackets * pNumPackets, // Output
-                IfsPacket ** ppData, // Output
-                NumPackets * pStartPacket // Output
-        );
 
 #endif

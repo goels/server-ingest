@@ -123,17 +123,41 @@ SIM_LDOPTS = \
 # Source files
 #
 LIB_SOURCES = \
-	IfsParse.c \
-	IfsImpl.c
+	ifs_mpeg2ts_parse.c \
+	ifs_mpeg2ps_parse.c \
+	ifs_mpeg4_parse.c \
+	ifs_h262_parse.c \
+	ifs_h264_parse.c \
+	ifs_h265_parse.c \
+	ifs_file.c \
+	ifs_operations.c \
+	ifs_utils.c \
+	ifs_impl.c
 
 NDX_SOURCES = \
-	IfsParse.c \
-	IfsImpl.c \
+	ifs_mpeg2ts_parse.c \
+	ifs_mpeg2ps_parse.c \
+	ifs_mpeg4_parse.c \
+	ifs_h262_parse.c \
+	ifs_h264_parse.c \
+	ifs_h265_parse.c \
+	ifs_impl.c \
+	ifs_file.c \
+	ifs_operations.c \
+	ifs_utils.c \
 	NdxDump.c
 
 SIM_SOURCES = \
-	IfsParse.c \
-	IfsImpl.c \
+	ifs_mpeg2ts_parse.c \
+	ifs_mpeg2ps_parse.c \
+	ifs_mpeg4_parse.c \
+	ifs_h262_parse.c \
+	ifs_h264_parse.c \
+	ifs_h265_parse.c \
+	ifs_impl.c \
+	ifs_file.c \
+	ifs_operations.c \
+	ifs_utils.c \
 	IfsSim.c
 
 #

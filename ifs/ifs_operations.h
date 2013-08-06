@@ -51,58 +51,71 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _RI_LOG_H
-#define _RI_LOG_H "$Rev: 141 $"
+// Private IFS Definitions
 
-#define DEBUG_ERROR_LOGS
+#ifndef _IFS_OPERATIONS_H
+#define _IFS_OPERATIONS_H "$Rev: 141 $"
 
-#include <stdio.h>
+#include "IfsIntf.h"
 
-#ifndef llong
-#define llong long long
-#endif
+#include "ifs_impl.h"
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned long uint24_t;
-typedef unsigned long uint32_t;
-typedef unsigned llong uint64_t;
+IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
+        IfsClock ifsClock, // Input, in nanoseconds
+        NumPackets numPackets, // Input
+        IfsPacket * pData // Input
+);
 
-#define log4c_category_t void
+IfsReturnCode IfsConvert(IfsHandle srcHandle, // Input
+        IfsHandle dstHandle, // Input (must be a writer)
+        IfsClock * pBegClock, // Input request/Output actual, in nanoseconds
+        IfsClock * pEndClock // Input request/Output actual, in nanoseconds
+);
 
-//LOG4C_API log4c_category_t * log4c_category_get(const char* a_name);
-#define log4c_category_get(a_name) NULL
+IfsReturnCode IfsAppend // Must call IfsConvert() before calling this function
+(IfsHandle srcHandle, // Input
+        IfsHandle dstHandle, // Input (must be a writer)
+        IfsClock * pEndClock // Input request/Output actual, in nanoseconds
+);
 
-#define RILOG_FATAL(code, format, ...) \
-    printf((format), ## __VA_ARGS__), exit(code)
+IfsReturnCode IfsRead(IfsHandle ifsHandle, // Input
+        NumPackets * pNumPackets, // Input request/Output actual
+        IfsClock * pCurClock, // Output current clock value
+        IfsPacket ** ppData // Output
+);
 
-#ifdef DEBUG_ERROR_LOGS
-#define RILOG_ERROR(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_CRIT(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_WARN(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_ERROR(format, ...)
-#define RILOG_CRIT(format, ...)
-#define RILOG_WARN(format, ...)
-#endif
+IfsReturnCode IfsReadPicture // Must call IfsSeekToTime() before calling this function
+        (IfsHandle ifsHandle, // Input
+                IfsPcr ifsPcr, // Input
+                IfsPts ifsPts, // Input
+                IfsReadType ifsReadType, // Input
+                NumPackets * pNumPackets, // Output
+                IfsPacket ** ppData, // Output
+                NumPackets * pStartPacket // Output
+);
 
-#define RILOG_NOTICE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+IfsReturnCode IfsReadNearestPicture // Must call IfsSeekToTime() before calling this function
+(IfsHandle ifsHandle, // Input
+        IfsPcr ifsPcr, // Input
+        IfsPts ifsPts, // Input
+        NumPackets * pNumPackets, // Output
+        IfsPacket ** ppData // Output
+);
 
-#define RILOG_INFO(format, ...) \
-    printf((format), ## __VA_ARGS__)
+IfsReturnCode IfsReadNextPicture // Must call IfsSeekToTime() before calling this function
+(IfsHandle ifsHandle, // Input
+        IfsPcr ifsPcr, // Input
+        IfsPts ifsPts, // Input
+        NumPackets * pNumPackets, // Output
+        IfsPacket ** ppData // Output
+);
 
-#ifdef DEBUG_PAT_AND_PMT
-#define RILOG_DEBUG(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_DEBUG(format, ...)
-#endif
-
-#define RILOG_TRACE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+IfsReturnCode IfsReadPreviousPicture // Must call IfsSeekToTime() before calling this function
+(IfsHandle ifsHandle, // Input
+        IfsPcr ifsPcr, // Input
+        IfsPts ifsPts, // Input
+        NumPackets * pNumPackets, // Output
+        IfsPacket ** ppData // Output
+);
 
 #endif

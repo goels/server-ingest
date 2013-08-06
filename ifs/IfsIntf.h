@@ -60,6 +60,7 @@
 
 #define DEBUG_ALL_PES_CODES
 
+#define MAX_TRANSPORT_PACKET_SIZE 208
 #define IFS_TRANSPORT_PACKET_SIZE 188
 #define IFS_NULL_PID_VALUE        ((IfsPid)0x1FFF)
 #define IFS_UNDEFINED_PID         ((IfsPid)-1)
@@ -83,6 +84,14 @@ typedef unsigned llong IfsPcr; // PCR values
 typedef unsigned llong IfsPts; // PTS values
 
 typedef struct IfsHandleImpl * IfsHandle;
+typedef union IfsCodecImpl IfsCodec;
+
+typedef enum
+{
+
+    IfsIndexDumpModeOff = 0, IfsIndexDumpModeDef = 1, IfsIndexDumpModeAll = 2,
+
+} IfsIndexDumpMode;
 
 typedef enum
 {
@@ -97,6 +106,26 @@ typedef enum
 // Seek to either the begin or end of the range, whichever is fastest
 
 } IfsDirect;
+
+typedef enum
+{
+    IfsCodecTypeError                 =  0,
+    IfsCodecTypeH261                  =  1,
+    IfsCodecTypeH262                  =  2,
+    IfsCodecTypeH263                  =  3,
+    IfsCodecTypeH264                  =  4,
+    IfsCodecTypeH265                  =  5,
+
+} IfsCodecType;
+
+typedef enum
+{
+    IfsContainerTypeError             =  0,
+    IfsContainerTypeMpeg2Ps           =  1,
+    IfsContainerTypeMpeg2Ts           =  2,
+    IfsContainerTypeMpeg4             =  4,
+
+} IfsContainerType;
 
 typedef enum
 {
@@ -143,15 +172,17 @@ typedef struct IfsInfo
     NumBytes ndexSize; // size of the NDEX file(s)
     IfsClock begClock; // in nanoseconds
     IfsClock endClock; // in nanoseconds
-    IfsPid videoPid;
-    IfsPid audioPid;
     IfsTime maxSize; // in seconds, 0 = value not used
+
+    // Video codec-specific handle params
+    IfsCodec* codec;
 
 } IfsInfo;
 
 typedef struct IfsPacket
 {
-    unsigned char bytes[IFS_TRANSPORT_PACKET_SIZE];
+    unsigned char bytes[MAX_TRANSPORT_PACKET_SIZE];
+    NumBytes pktSize; // size of the transport packet (188, 192, 204, or 208)
 
 } IfsPacket;
 

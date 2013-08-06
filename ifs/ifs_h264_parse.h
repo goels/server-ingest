@@ -51,58 +51,21 @@
 //       303 661-9100
 // COPYRIGHT_END
 
-#ifndef _RI_LOG_H
-#define _RI_LOG_H "$Rev: 141 $"
+#ifndef _IFS_H264_PARSE_H
+#define _IFS_H264_PARSE_H "$Rev: 141 $"
 
-#define DEBUG_ERROR_LOGS
+#include "ifs_impl.h"
 
-#include <stdio.h>
+extern IfsBoolean h264_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
 
-#ifndef llong
-#define llong long long
-#endif
+extern char * h264_ParseWhat(IfsHandle ifsHandle, char * temp,
+                const IfsIndexDumpMode ifsIndexDumpMode,
+                const IfsBoolean flag);
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned long uint24_t;
-typedef unsigned long uint32_t;
-typedef unsigned llong uint64_t;
+extern void h264_CountIndexes(ullong ifsIndex);
 
-#define log4c_category_t void
+extern void h264_DumpIndexes(void);
 
-//LOG4C_API log4c_category_t * log4c_category_get(const char* a_name);
-#define log4c_category_get(a_name) NULL
-
-#define RILOG_FATAL(code, format, ...) \
-    printf((format), ## __VA_ARGS__), exit(code)
-
-#ifdef DEBUG_ERROR_LOGS
-#define RILOG_ERROR(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_CRIT(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#define RILOG_WARN(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_ERROR(format, ...)
-#define RILOG_CRIT(format, ...)
-#define RILOG_WARN(format, ...)
-#endif
-
-#define RILOG_NOTICE(format, ...) \
-    printf((format), ## __VA_ARGS__)
-
-#define RILOG_INFO(format, ...) \
-    printf((format), ## __VA_ARGS__)
-
-#ifdef DEBUG_PAT_AND_PMT
-#define RILOG_DEBUG(format, ...) \
-    printf((format), ## __VA_ARGS__)
-#else
-#define RILOG_DEBUG(format, ...)
-#endif
-
-#define RILOG_TRACE(format, ...) \
-    printf((format), ## __VA_ARGS__)
+extern void h264_DumpHandle(IfsHandle ifsHandle);
 
 #endif
