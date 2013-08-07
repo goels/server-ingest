@@ -92,7 +92,7 @@ log4c_category_t * ifs_RILogCategory = NULL;
 #define DEFAULT_IFS_CHUNK_SIZE "600"
 
 IfsIndexDumpMode indexDumpMode = IfsIndexDumpModeOff;
-ullong indexerSetting = 0;
+ullong indexerSetting = IfsH262IndexerSettingDefault;
 
 ullong whatAll = 0;
 unsigned indexCase = 0;
@@ -821,7 +821,6 @@ IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
             ifsHandle->codec->h262->oldSc = IFS_UNDEFINED_BYTE;
             ifsHandle->codec->h262->oldTp = IFS_UNDEFINED_BYTE;
             ifsHandle->codec->h262->oldCc = IFS_UNDEFINED_BYTE;
-            indexerSetting = IfsH262IndexerSettingDefault;
             break;
 
         case IfsCodecTypeH264:
@@ -831,7 +830,6 @@ IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
             ifsHandle->codec->h264->CountIndexes = h264_CountIndexes;
             ifsHandle->codec->h264->DumpIndexes = h264_DumpIndexes;
             ifsHandle->codec->h264->DumpHandle = h264_DumpHandle;
-            indexerSetting = IfsH264IndexerSettingDefault;
             break;
 
         case IfsCodecTypeH265:
@@ -841,7 +839,6 @@ IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
             ifsHandle->codec->h265->CountIndexes = h265_CountIndexes;
             ifsHandle->codec->h265->DumpIndexes = h265_DumpIndexes;
             ifsHandle->codec->h265->DumpHandle = h265_DumpHandle;
-            indexerSetting = IfsH265IndexerSettingDefault;
             break;
 
         default:

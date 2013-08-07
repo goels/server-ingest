@@ -844,7 +844,7 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
     }
     else if (ifsIndexDumpMode == IfsIndexDumpModeDef)
     {
-        //ifsIndex &= indexerSetting; // Clean up the output in this mode
+        ifsIndex &= indexerSetting; // Clean up the output in this mode
 
         switch (ifsIndex & IfsIndexStartPicture)
         {
