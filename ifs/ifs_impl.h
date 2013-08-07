@@ -136,6 +136,7 @@ typedef struct IfsHandleImpl
     // Transport container-specific handle params
     IfsContainerType containerType;
     //IfsContainer* container;
+    NumBytes pktSize; // size of the transport packet (188, 192, 204, or 208)
 
     // Video codec-specific handle params
     IfsCodecType codecType;

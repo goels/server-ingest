@@ -658,7 +658,7 @@ IfsBoolean h262_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
     else  // TODO: this section should parse MPEG PS
     {
         //printf("parsing MPEG2PS packet\n");
-        ParseElementary(ifsHandle, pIfsPacket->pktSize, pIfsPacket->bytes);
+        ParseElementary(ifsHandle, ifsHandle->pktSize, pIfsPacket->bytes);
     }
 
     return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
@@ -844,7 +844,7 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
     }
     else if (ifsIndexDumpMode == IfsIndexDumpModeDef)
     {
-        //ifsIndex &= indexerSetting; // Clean up the output in this mode
+        ifsIndex &= indexerSetting; // Clean up the output in this mode
 
         switch (ifsIndex & IfsIndexStartPicture)
         {
@@ -1222,10 +1222,8 @@ void h262_DumpIndexes(void)
     for (i = 0; i < 64; i++)
     {
         char temp[256] = { 0 }; // ParseWhat
-        IfsH262CodecImpl localH262Codec = { 0 };
-        IfsHandleImpl tempHandleImpl;
+        IfsHandleImpl tempHandleImpl = { 0 };
 
-        tempHandleImpl.codec = (IfsCodec*)&localH262Codec;
         g_static_mutex_init(&(tempHandleImpl.mutex));
         tempHandleImpl.entry.what = ((IfsH262Index) 1) << i;
 

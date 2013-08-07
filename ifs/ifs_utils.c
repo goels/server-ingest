@@ -329,6 +329,12 @@ IfsReturnCode IfsFreeInfo(IfsInfo * pIfsInfo // Input
 
     if (pIfsInfo->codec)
     {
+        if (pIfsInfo->codec->h262) // union of ptrs all reference the same memory
+        {
+            g_free(pIfsInfo->codec->h262);
+            pIfsInfo->codec->h262 = NULL;
+        }
+
         g_free(pIfsInfo->codec);
         pIfsInfo->codec = NULL;
     }
@@ -405,7 +411,7 @@ IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, // Input
         const size_t nameSize = strlen(ifsHandle->name) + 1;
         const IfsClock difClock = ifsHandle->endClock - ifsHandle->begClock;
 
-        pIfsInfo = g_try_malloc(sizeof(IfsInfo)); // g_free in IfsFreeInfo()
+        pIfsInfo = g_malloc0(sizeof(IfsInfo)); // g_free in IfsFreeInfo()
         if (pIfsInfo == NULL)
         {
             RILOG_CRIT(
@@ -415,7 +421,7 @@ IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, // Input
             return IfsReturnCodeMemAllocationError;
         }
 
-        pIfsInfo->codec = g_try_malloc(sizeof(IfsCodecImpl)); // g_free in IfsFreeInfo()
+        pIfsInfo->codec = g_malloc0(sizeof(IfsCodecImpl)); // g_free in IfsFreeInfo()
         pIfsInfo->maxSize = ifsHandle->maxSize; // in seconds, 0 = value not used
         pIfsInfo->path = NULL; // filled in below
         pIfsInfo->name = NULL; // filled in below
@@ -426,14 +432,33 @@ IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, // Input
                 - ifsHandle->maxSize * NSEC_PER_SEC : ifsHandle->begClock);
         pIfsInfo->endClock = ifsHandle->endClock; // in nanoseconds
 
-        if (ifsHandle->codecType == IfsCodecTypeH262)
+        switch (ifsHandle->codecType)
         {
-            pIfsInfo->codec->h262->videoPid = ifsHandle->codec->h262->videoPid;
-            pIfsInfo->codec->h262->audioPid = ifsHandle->codec->h262->audioPid;
+            case IfsCodecTypeH261:
+            case IfsCodecTypeH262:
+            case IfsCodecTypeH263:
+                pIfsInfo->codec->h262 = g_malloc0(sizeof(IfsH262CodecImpl)); // g_free in IfsFreeInfo()
+                pIfsInfo->codec->h262->videoPid = ifsHandle->codec->h262->videoPid;
+                pIfsInfo->codec->h262->audioPid = ifsHandle->codec->h262->audioPid;
+                break;
+
+            case IfsCodecTypeH264:
+                pIfsInfo->codec->h264 = g_malloc0(sizeof(IfsH264CodecImpl)); // g_free in IfsFreeInfo()
+                break;
+
+            case IfsCodecTypeH265:
+                pIfsInfo->codec->h265 = g_malloc0(sizeof(IfsH265CodecImpl)); // g_free in IfsFreeInfo()
+                break;
+
+            default:
+                RILOG_ERROR("IfsReturnCodeBadInputParameter: "
+                            "invalid CODEC line %d of %s\n", __LINE__, __FILE__);
+                ifsReturnCode = IfsReturnCodeBadInputParameter;
+                break;
         }
 
-        pIfsInfo->path = g_try_malloc(pathSize); // g_free in IfsFreeInfo()
-        pIfsInfo->name = g_try_malloc(nameSize); // g_free in IfsFreeInfo()
+        pIfsInfo->path = g_malloc0(pathSize); // g_free in IfsFreeInfo()
+        pIfsInfo->name = g_malloc0(nameSize); // g_free in IfsFreeInfo()
 
         if (pIfsInfo->path == NULL)
         {

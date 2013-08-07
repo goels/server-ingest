@@ -54,7 +54,7 @@
 #ifndef _RI_LOG_H
 #define _RI_LOG_H "$Rev: 141 $"
 
-#define DEBUG_ERROR_LOGS
+#undef DEBUG_ERROR_LOGS
 
 #include <stdio.h>
 
