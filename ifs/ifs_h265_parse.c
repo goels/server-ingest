@@ -116,13 +116,14 @@ void h265_DumpIndexes(void)
         char temp[256]; // ParseWhat
         IfsH265CodecImpl localH265Codec = { 0 };
         IfsHandleImpl tempHandleImpl;
+        NumBytes pktSize = IFS_TRANSPORT_PACKET_SIZE;
 
         tempHandleImpl.codec = (IfsCodec*)&localH265Codec;
         g_static_mutex_init(&(tempHandleImpl.mutex));
         tempHandleImpl.entry.what = ((IfsH265Index) 1) << i;
 
         // TODO: set the correct container!
-        if (IfsSetContainer(&tempHandleImpl, IfsContainerTypeMpeg2Ts)
+        if (IfsSetContainer(&tempHandleImpl, IfsContainerTypeMpeg2Ts, pktSize)
                 != IfsReturnCodeNoErrorReported)
         {
             printf("Problems setting ifs codec\n");

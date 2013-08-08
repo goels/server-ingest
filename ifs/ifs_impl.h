@@ -171,7 +171,8 @@ void SetIndexer(ullong ifsIndexerSetting);
 IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
                           IfsCodecType codecType // Input
                           );
-IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,           // Input
-                              IfsContainerType containerType // Input
+IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,            // Input
+                              IfsContainerType containerType, // Input
+                              NumBytes pktSize                // Input
                           );
 #endif

@@ -1223,12 +1223,12 @@ void h262_DumpIndexes(void)
     {
         char temp[256] = { 0 }; // ParseWhat
         IfsHandleImpl tempHandleImpl = { 0 };
+        NumBytes pktSize = IFS_TRANSPORT_PACKET_SIZE;
 
         g_static_mutex_init(&(tempHandleImpl.mutex));
         tempHandleImpl.entry.what = ((IfsH262Index) 1) << i;
 
-        // TODO: set the correct container!
-        if (IfsSetContainer(&tempHandleImpl, IfsContainerTypeMpeg2Ts)
+        if (IfsSetContainer(&tempHandleImpl, IfsContainerTypeMpeg2Ts, pktSize)
                 != IfsReturnCodeNoErrorReported)
         {
             printf("Problems setting ifs codec\n");

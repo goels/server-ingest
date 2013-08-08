@@ -747,8 +747,9 @@ IfsReturnCode IfsClearCodecs(IfsHandle ifsHandle)
     }
 }
 
-IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,           // Input
-                              IfsContainerType containerType // Input
+IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,            // Input
+                              IfsContainerType containerType, // Input
+                              NumBytes pktSize                // Input
 )
 {
     IfsReturnCode ifsReturnCode = IfsReturnCodeNoErrorReported;
@@ -762,6 +763,7 @@ IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,           // Input
 
     g_static_mutex_lock(&(ifsHandle->mutex));
     ifsHandle->containerType = containerType;
+    ifsHandle->pktSize = pktSize;
 
     switch (containerType)
     {

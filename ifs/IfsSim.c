@@ -632,7 +632,9 @@ static IfsBoolean ProcessArguments(int argc, char *argv[])
 // returns TRUE on success else FALSE
 static IfsBoolean SetIfsContainerAndCodec(IfsHandle ifsHandle)
 {
-    if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ts)
+    NumBytes pktSize = IFS_TRANSPORT_PACKET_SIZE;
+
+    if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ts, pktSize)
             != IfsReturnCodeNoErrorReported)
     {
         printf("Problems setting ifs container\n");
