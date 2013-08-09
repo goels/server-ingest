@@ -65,6 +65,7 @@ include ../common.mk
 LIB_OBJDIR = ./ifslibobjs
 NDX_OBJDIR = ./ifsndxobjs
 SIM_OBJDIR = ./ifssimobjs
+APP_OBJDIR = ./ifsappobjs
 
 INCLUDE_DIR = ./include
 BIN_DIR     = ../bin
@@ -99,6 +100,14 @@ SIM_COPTS = \
 	-DSTAND_ALONE \
 	$(CPPFLAGS)
 
+APP_COPTS = \
+	-I/usr/include \
+	-I/usr/include/glib-2.0 \
+	-I/usr/lib/$(hardware_platform)/glib-2.0/include \
+	-I./ \
+	-DSTAND_ALONE \
+	$(CPPFLAGS)
+
 #
 # Linker options
 #
@@ -118,6 +127,12 @@ SIM_LDOPTS = \
 	-L../lib \
 	-lglib-2.0 \
 	-lremap
+
+APP_LDOPTS = \
+	-L../bin \
+	-L../lib \
+	-lglib-2.0 \
+	-lifs
 
 #
 # Source files
@@ -160,12 +175,16 @@ SIM_SOURCES = \
 	ifs_utils.c \
 	IfsSim.c
 
+APP_SOURCES = \
+	indexVideo.c
+
 #
 # Intermediate files
 #
 LIB_OBJS = $(patsubst %.c,$(LIB_OBJDIR)/%.o,$(LIB_SOURCES))
 NDX_OBJS = $(patsubst %.c,$(NDX_OBJDIR)/%.o,$(NDX_SOURCES))
 SIM_OBJS = $(patsubst %.c,$(SIM_OBJDIR)/%.o,$(SIM_SOURCES))
+APP_OBJS = $(patsubst %.c,$(APP_OBJDIR)/%.o,$(APP_SOURCES))
 
 #
 # Include dependency files
@@ -173,11 +192,13 @@ SIM_OBJS = $(patsubst %.c,$(SIM_OBJDIR)/%.o,$(SIM_SOURCES))
 LIB_DEPENDS = $(patsubst %.c,$(LIB_OBJDIR)/%.d,$(LIB_SOURCES))
 NDX_DEPENDS = $(patsubst %.c,$(NDX_OBJDIR)/%.d,$(NDX_SOURCES))
 SIM_DEPENDS = $(patsubst %.c,$(SIM_OBJDIR)/%.d,$(SIM_SOURCES))
+APP_DEPENDS = $(patsubst %.c,$(APP_OBJDIR)/%.d,$(APP_SOURCES))
 
 ifeq ($(strip $(filter clean purge,$(MAKECMDGOALS))),)
 -include $(LIB_DEPENDS)
 -include $(NDX_DEPENDS)
 -include $(SIM_DEPENDS)
+-include $(APP_DEPENDS)
 endif
 
 #
@@ -186,6 +207,7 @@ endif
 LIB = $(LIB_DIR)/libifs$(SO_SUFFIX)
 NDX = $(BIN_DIR)/NdxDump$(EXE_SUFFIX)
 SIM = $(BIN_DIR)/IfsSim$(EXE_SUFFIX)
+APP = $(BIN_DIR)/indexVideo$(EXE_SUFFIX)
 
 platform:
 	@$(ECHO) "building for $(PLATFORM)"
@@ -193,7 +215,7 @@ platform:
 #
 # Build everything
 #
-build: $(LIB) $(NDX) $(SIM)
+build: $(LIB) $(NDX) $(SIM) $(APP)
 
 #
 # Build the library from intermediate files
@@ -214,6 +236,12 @@ $(SIM): $(SIM_OBJS)
 	$(call BUILD_EXECUTABLE,$(SIM_OBJS) $(SIM_LDOPTS))
 
 #
+# Build the indexVideo tool
+#
+$(APP): $(LIB) $(APP_OBJS)
+	$(call BUILD_EXECUTABLE,$(APP_OBJS) $(APP_LDOPTS))
+
+#
 # Compile source files into intermediate files
 #
 $(LIB_OBJDIR)/%.o: %.c $(call makefile-list)
@@ -224,6 +252,9 @@ $(NDX_OBJDIR)/%.o: %.c $(call makefile-list)
 
 $(SIM_OBJDIR)/%.o: %.c $(call makefile-list)
 	$(call COMPILE,$(SIM_COPTS))
+
+$(APP_OBJDIR)/%.o: %.c $(call makefile-list)
+	$(call COMPILE,$(APP_COPTS))
 
 #
 # Bring header file dependencies up to date
@@ -237,6 +268,9 @@ $(NDX_OBJDIR)/%.d: %.c
 $(SIM_OBJDIR)/%.d: %.c
 	$(call BUILD_DEPENDS,$(SIM_COPTS))
 
+$(APP_OBJDIR)/%.d: %.c
+	$(call BUILD_DEPENDS,$(APP_COPTS))
+
 #
 # Clean and purge
 #
@@ -244,7 +278,8 @@ clean:
 	$(RMTREE) $(LIB_OBJDIR)
 	$(RMTREE) $(NDX_OBJDIR)
 	$(RMTREE) $(SIM_OBJDIR)
+	$(RMTREE) $(APP_OBJDIR)
 
 purge:
-	$(RM) $(LIB) $(NDX) $(SIM)
+	$(RM) $(LIB) $(NDX) $(SIM) $(APP)
 

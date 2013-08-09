@@ -175,9 +175,80 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
     {
         printf("Processing two args...\n");
         strcpy(inputFile, argv[1]);
-        if (strstr(argv[1], ".mpg"))
+        // .ps means we're looking at MPEG2 program stream
+        if (strstr(argv[1], ".ps"))
         {
-            // .mpg or .ts means we're looking at MPEG2 PS or TS encapsulated
+            NumPackets numPackets;
+            IfsPacket ifsPacket;
+            NumBytes mpegpsPktSize = IFS_TRANSPORT_PACKET_SIZE;
+            int i = 0;
+
+            gCodecType = IfsCodecTypeH262;
+            printf("Opening mpeg program stream file...\n");
+            FILE * const pInFile = fopen(inputFile, "rb");
+
+            if (IfsOpenWriter(".", NULL, 0, &ifsHandle)
+                    != IfsReturnCodeNoErrorReported)
+            {
+                printf("Problems opening ifs writer\n");
+                return IfsTrue;
+            }
+
+            // TODO: set the correct container!
+            if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ps, mpegpsPktSize)
+                    != IfsReturnCodeNoErrorReported)
+            {
+                printf("Problems setting ifs container\n");
+                return IfsTrue;
+            }
+
+            if (IfsSetCodec(ifsHandle, gCodecType)
+                    != IfsReturnCodeNoErrorReported)
+            {
+                printf("Problems setting ifs codec\n");
+                return IfsTrue;
+            }
+
+            IfsSetMode(IfsIndexDumpModeOff, IfsH262IndexerSettingDefault);
+            //IfsSetMode(IfsIndexDumpModeDef, IfsH262IndexerSettingVerbose);
+            isAnMpegFile = IfsTrue;
+
+            if (IfsStart(ifsHandle, 0, 0) != IfsReturnCodeNoErrorReported)
+            {
+                printf("Problems starting ifs writer\n");
+                return IfsTrue;
+            }
+
+            // Pretend each packet contains 1 second of data...
+            while ((numPackets =
+                fread(&ifsPacket, mpegpsPktSize, 1, pInFile)) != 0)
+            {
+                if (IfsWrite(ifsHandle, ++i * NSEC_PER_SEC, numPackets,
+                        &ifsPacket) != IfsReturnCodeNoErrorReported)
+                {
+                    printf("Problems writing packet\n");
+                    return IfsTrue;
+                }
+            }
+            fclose(pInFile);
+            if (IfsSeekToPacket(ifsHandle, 0, NULL)
+                    != IfsReturnCodeNoErrorReported)
+            {
+                printf("Problems seeking to packet\n");
+                return IfsTrue;
+            }
+            if (fread(&ifsHandle->entry, 1, sizeof(IfsIndexEntry),
+                    ifsHandle->pNdex) != sizeof(IfsIndexEntry))
+            {
+                printf("Problems reading entry\n");
+                return IfsTrue;
+            }
+            printf("Successfully opened file...\n");
+            return IfsFalse;
+        }
+        else if ((strstr(argv[1], ".mpg")) || (strstr(argv[1], ".ts")))
+        {
+            // .mpg or .ts means we're looking at MPEG2 TS encapsulated
             gCodecType = IfsCodecTypeH262;
             printf("Opening mpeg file...\n");
             FILE * const pInFile = fopen(inputFile, "rb");
@@ -309,9 +380,9 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
                 {
                     NumPackets numPackets;
                     IfsPacket ifsPacket;
+                    NumBytes pktSize = IFS_TRANSPORT_PACKET_SIZE;
 
                     printf("Vid PID (%4d) found\n", theVideoPid);
-
                     rewind(pInFile);
 
                     if (IfsOpenWriter(".", NULL, 0, &ifsHandle)
@@ -322,8 +393,8 @@ static IfsBoolean ProcessArguments(int argc, char *argv[]) // returns IfsTrue = 
                     }
 
                     // TODO: set the correct container!
-                    if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ts)
-                            != IfsReturnCodeNoErrorReported)
+                    if (IfsSetContainer(ifsHandle, IfsContainerTypeMpeg2Ts,
+                        pktSize) != IfsReturnCodeNoErrorReported)
                     {
                         printf("Problems setting ifs container\n");
                         return IfsTrue;

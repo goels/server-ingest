@@ -93,6 +93,7 @@ log4c_category_t * ifs_RILogCategory = NULL;
 
 IfsIndexDumpMode indexDumpMode = IfsIndexDumpModeOff;
 ullong indexerSetting = IfsH262IndexerSettingDefault;
+ullong IfsIndexerSettingDefault = IfsH262IndexerSettingDefault;
 
 ullong whatAll = 0;
 unsigned indexCase = 0;

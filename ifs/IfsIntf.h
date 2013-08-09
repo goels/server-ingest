@@ -185,6 +185,9 @@ typedef struct IfsPacket
 
 } IfsPacket;
 
+
+extern ullong IfsIndexerSettingDefault;
+
 // Utility operations:
 
 const char * IfsReturnCodeToString(const IfsReturnCode ifsReturnCode);
@@ -303,5 +306,17 @@ IfsReturnCode IfsClose(IfsHandle ifsHandle // Input
         );
 
 IfsBoolean IfsHasWriter(IfsHandle ifsHandle);
+
+IfsReturnCode IfsSetCodec(IfsHandle ifsHandle,   // Input
+                          IfsCodecType codecType // Input
+                          );
+
+IfsReturnCode IfsSetContainer(IfsHandle ifsHandle,            // Input
+                              IfsContainerType containerType, // Input
+                              NumBytes pktSize                // Input
+                          );
+
+void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
+                const ullong ifsIndexerSetting);
 
 #endif
