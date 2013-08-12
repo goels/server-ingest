@@ -60,6 +60,7 @@
 #include <glib.h>
 
 #include "IfsIntf.h"
+#include "getMpegTsPsi.h"
 
 #ifndef MAX_PATH
 #define MAX_PATH 260
@@ -73,6 +74,7 @@ static void
 Index(char* inputFile, IfsHandle ifsHandle, IfsContainerType containerType,
                                             IfsCodecType codecType)
 {
+    struct stream stream = { { 0 } };
     FILE * pInFile = NULL;
     IfsPacket ifsPacket = { { 0 } };
     NumPackets numPackets = 0;
@@ -83,7 +85,49 @@ Index(char* inputFile, IfsHandle ifsHandle, IfsContainerType containerType,
            containerName[containerType], codecName[codecType]);
     pInFile = fopen(inputFile, "rb");
 
-    //TODO: get PIDs
+    // get PIDs
+    stream.firstPAT = TRUE;
+    stream.firstPMT = TRUE;
+    stream.patPID = 0;
+    stream.pmtPID = 0x1FFF;
+    stream.videoPID = 0x1FFF;
+    stream.audioPID = 0x1FFF;
+
+    if (NULL == (stream.buffer = (unsigned char*)g_malloc0(4*MAX_TS_PKT_SIZE)))
+    {
+        fclose(pInFile);
+        fprintf(stderr, "could not allocate memory for stream\n");
+        exit(-1);
+    }
+
+    stream.bufLen = fread(stream.buffer, 1, 4 * MAX_TS_PKT_SIZE, pInFile);
+    stream.offset = 0;
+    discoverPktSize(&stream);
+
+    if (0 == stream.tsPktSize)
+    {
+        fclose(pInFile);
+        fprintf(stderr, "mpeg file <%s> is not a transport stream\n", inputFile);
+        free(stream.buffer);
+        exit(-4);
+    }
+
+    printf("\npacket size: %d, offset: %d\n", stream.tsPktSize, stream.offset);
+    rewind(pInFile);
+
+    // read and toss the bytes preceeding the SYNC
+    if (stream.offset > 0)
+        fread(stream.buffer, 1, stream.offset, pInFile);
+
+    while (!feof(pInFile))
+    {
+        stream.bufLen = fread(stream.buffer, 1, 4*stream.tsPktSize, pInFile);
+        decode_mp2ts(&stream, NULL, NULL);
+    }
+
+    printf("\n\n");
+    free(stream.buffer);
+    rewind(pInFile);
 
     if (IfsOpenWriter(".", NULL, 0, &ifsHandle) != IfsReturnCodeNoErrorReported)
     {
@@ -99,7 +143,8 @@ Index(char* inputFile, IfsHandle ifsHandle, IfsContainerType containerType,
         printf("Problems setting ifs codec\n");
         return;
     }
-    else if (IfsStart(ifsHandle, 17, 0) != IfsReturnCodeNoErrorReported)
+    else if (IfsStart(ifsHandle, stream.videoPID, stream.audioPID)
+                          != IfsReturnCodeNoErrorReported)
     {
         printf("Problems starting ifs writer\n");
         return;

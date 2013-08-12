@@ -176,6 +176,7 @@ SIM_SOURCES = \
 	IfsSim.c
 
 APP_SOURCES = \
+	getMpegTsPsi.c \
 	indexVideo.c
 
 #
