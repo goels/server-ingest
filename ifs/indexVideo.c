@@ -67,22 +67,22 @@
 #endif
 
 
-static char* containerName[] = {"WRONG","MPEGPS","MPEGTS","MPEG4"};
-static char* codecName[] = {"WRONG","H.261","H.262","H.263","H.264","H.265"};
+static char* containerName[] = {"ERROR","MPEGPS","MPEGTS","MPEG4"};
+static char* codecName[] = {"ERROR","H.261","H.262","H.263","H.264","H.265"};
 
 static void
-Index(char* inputFile, IfsHandle ifsHandle, IfsContainerType containerType,
-                                            IfsCodecType codecType)
+Index(char* inputFile, IfsHandle ifsHandle)
 {
     struct stream stream = { { 0 } };
     FILE * pInFile = NULL;
     IfsPacket ifsPacket = { { 0 } };
+    IfsContainerType containerType = 0;
+    IfsCodecType codecType = 0;
     NumPackets numPackets = 0;
     NumBytes pktSize = IFS_TRANSPORT_PACKET_SIZE;// TODO: support multiple sizes
     int i = 0;
 
-    printf("%s opening %s file with %s video...\n", __func__,
-           containerName[containerType], codecName[codecType]);
+    printf("%s opening %s", __func__, inputFile);
     pInFile = fopen(inputFile, "rb");
 
     // get PIDs
@@ -92,6 +92,9 @@ Index(char* inputFile, IfsHandle ifsHandle, IfsContainerType containerType,
     stream.pmtPID = 0x1FFF;
     stream.videoPID = 0x1FFF;
     stream.audioPID = 0x1FFF;
+
+    // start by assuming TS containers...
+    containerType = IfsContainerTypeMpeg2Ts;
 
     if (NULL == (stream.buffer = (unsigned char*)g_malloc0(4*MAX_TS_PKT_SIZE)))
     {
@@ -106,28 +109,31 @@ Index(char* inputFile, IfsHandle ifsHandle, IfsContainerType containerType,
 
     if (0 == stream.tsPktSize)
     {
-        fclose(pInFile);
-        fprintf(stderr, "mpeg file <%s> is not a transport stream\n", inputFile);
-        free(stream.buffer);
-        exit(-4);
+        printf("(is not a TS, checking PS)\n");
+        containerType = IfsContainerTypeMpeg2Ps;
+        codecType = IfsCodecTypeH262;
     }
-
-    printf("\npacket size: %d, offset: %d\n", stream.tsPktSize, stream.offset);
-    rewind(pInFile);
-
-    // read and toss the bytes preceeding the SYNC
-    if (stream.offset > 0)
-        fread(stream.buffer, 1, stream.offset, pInFile);
-
-    while (!feof(pInFile))
+    else
     {
-        stream.bufLen = fread(stream.buffer, 1, 4*stream.tsPktSize, pInFile);
-        decode_mp2ts(&stream, NULL, NULL);
+        printf("  packet size:%d, offset:%d\n", stream.tsPktSize, stream.offset);
+        rewind(pInFile);
+
+        // read and toss the bytes preceeding the SYNC
+        if (stream.offset > 0)
+            fread(stream.buffer, 1, stream.offset, pInFile);
+
+        while (!feof(pInFile))
+        {
+            stream.bufLen = fread(stream.buffer, 1, 4*stream.tsPktSize, pInFile);
+            decode_mp2ts(&stream, NULL, NULL);
+        }
+
+        codecType = stream.codecType;
     }
 
-    printf("\n\n");
     free(stream.buffer);
     rewind(pInFile);
+    printf("\n%s [ %s ]\n\n", containerName[containerType], codecName[codecType]);
 
     if (IfsOpenWriter(".", NULL, 0, &ifsHandle) != IfsReturnCodeNoErrorReported)
     {
@@ -179,44 +185,14 @@ main(int argc, char *argv[])
 
     if (argc == 2)
     {
-        // .ps means we're looking at MPEG2 program stream with H.262
-        if (strstr(argv[1], ".ps"))
-        {
-            Index(argv[1], handle, IfsContainerTypeMpeg2Ps, IfsCodecTypeH262);
-        }
-        else if ((strstr(argv[1], ".ts")) || (strstr(argv[1], ".mpg")))
-        {
-            // .ts or .mpg means we're looking at MPEG2 TS encapsulated H.262
-            Index(argv[1], handle, IfsContainerTypeMpeg2Ts, IfsCodecTypeH262);
-        }
-        else if (strstr(argv[1], ".ts4"))
-        {
-            // .ts4 means we're looking at MPEG2 TS encapsulated H.264
-            Index(argv[1], handle, IfsContainerTypeMpeg2Ts, IfsCodecTypeH264);
-        }
-        else if (strstr(argv[1], ".ts5"))
-        {
-            // .ts5 means we're looking at MPEG2 TS encapsulated H.265
-            Index(argv[1], handle, IfsContainerTypeMpeg2Ts, IfsCodecTypeH265);
-        }
-        else if ((strstr(argv[1], ".avc")) || (strstr(argv[1], ".mp4")))
-        {
-            // .avc or .mp4 means we're looking at MPEG4 encapsulated H.264
-            Index(argv[1], handle, IfsContainerTypeMpeg4, IfsCodecTypeH264);
-        }
-        else if ((strstr(argv[1], ".hvc")) || (strstr(argv[1], ".mp5")))
-        {
-            // .hvc or .mp5 means we're looking at MPEG4 encapsulated H.265
-            Index(argv[1], handle, IfsContainerTypeMpeg4, IfsCodecTypeH264);
-        }
+        Index(argv[1], handle);
     }
     else
     {
         printf("Usage:  indexVideo <input>\n");
-        printf("        Where <input> is one of the following three cases:\n");
-        printf("          1) an MPEG2TS file such as plain.mpg\n");
-        printf("          2) an MPEG2PS file such as departing_earth.ps\n");
-        printf("          3) an MPEG4 file such as mp4_video_in_mp2ts.ts\n");
+        printf("   Where <input> is one of the following two cases:\n");
+        printf("      1) an MPEG2TS with H.261, H.262, H.263, or H.264 video\n");
+        printf("      2) an MPEG2PS file\n");
     }
 
     return IfsClose(handle);

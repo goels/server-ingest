@@ -5,6 +5,131 @@
 
 #include "getMpegTsPsi.h"
 
+#define OTHER   0
+#define VIDEO   1
+#define AUDIO   2
+int
+getPmtStreamType(struct stream* strm)
+{
+    switch(strm->type)
+    {
+        case 0x00: return OTHER;     // "Reserved";
+        case 0x01:
+            strm->codecType = IfsCodecTypeH261;
+            return VIDEO;            // "MPEG-1 Video";
+        case 0x02:
+            strm->codecType = IfsCodecTypeH262;
+            return VIDEO;            // "MPEG-2 Video";
+        case 0x03: return AUDIO;     // "MPEG-1 Audio";
+        case 0x04: return AUDIO;     // "MPEG-2 Audio";
+        case 0x05: return OTHER;     // "ISO 13818-1 private sections";
+        case 0x06: return OTHER;     // "ISO 13818-1 PES private data";
+        case 0x07: return OTHER;     // "ISO 13522 MHEG";
+        case 0x08: return OTHER;     // "ISO 13818-1 DSM-CC";
+        case 0x09: return OTHER;     // "ISO 13818-1 auxiliary";
+        case 0x0A: return OTHER;     // "ISO 13818-6 multi-protocol encap";
+        case 0x0B: return OTHER;     // "ISO 13818-6 DSM-CC U-N msgs";
+        case 0x0C: return OTHER;     // "ISO 13818-6 stream descriptors";
+        case 0x0D: return OTHER;     // "ISO 13818-6 sections";
+        case 0x0E: return OTHER;     // "ISO 13818-1 auxiliary";
+        case 0x0F: return AUDIO;     // "MPEG-2 AAC Audio";
+        case 0x10:
+            strm->codecType = IfsCodecTypeH264;
+            return VIDEO;            // "MPEG-4 Video";
+        case 0x11: return AUDIO;     // "MPEG-4 LATM AAC Audio";
+        case 0x12: return AUDIO;     // "MPEG-4 generic";
+        case 0x13: return OTHER;     // "ISO 14496-1 SL-packetized";
+        case 0x14: return OTHER;     // "ISO 13818-6 Synch'd Download Protocol";
+        case 0x1b:
+            strm->codecType = IfsCodecTypeH264;
+            return VIDEO;            // "H.264 Video";
+        case 0x1c: return AUDIO;     // "MPEG-4 Audio";
+        case 0x80:
+            strm->codecType = IfsCodecTypeH263;
+            return VIDEO;            // "DigiCipher II Video";
+        case 0x81: return AUDIO;     // "A52/AC-3 Audio";
+        case 0x82: return AUDIO;     // "HDMV DTS Audio";
+        case 0x83: return AUDIO;     // "LPCM Audio";
+        case 0x84: return AUDIO;     // "SDDS Audio";
+        case 0x85: return OTHER;     // "ATSC Program ID";
+        case 0x86: return AUDIO;     // "DTS-HD Audio";
+        case 0x87: return AUDIO;     // "E-AC-3 Audio";
+        case 0x8a: return AUDIO;     // "DTS Audio";
+        case 0x91: return AUDIO;     // "A52b/AC-3 Audio";
+        case 0x92: return OTHER;     // "DVD_SPU vls Subtitle";
+        case 0x94: return AUDIO;     // "SDDS Audio";
+        case 0xa0:
+            strm->codecType = IfsCodecTypeError;
+            return VIDEO;            // "MSCODEC Video";
+        case 0xa1: return AUDIO;     // "MSCODEC Audio";
+        case 0xa2: return AUDIO;     // "Generic Audio";
+        case 0xdb:
+            strm->codecType = IfsCodecTypeH264;
+            return VIDEO;            // "iOS H.264 Video";
+        case 0xea:
+            strm->codecType = IfsCodecTypeError;
+            return VIDEO;            // "Private ES (VC-1)";
+        default:
+            // 0x80-0xFF: return "User Private";
+            // 0x15-0x7F: return "ISO 13818-1 Reserved";
+            return OTHER;
+    }
+}
+
+static char*
+getPmtStreamTypeStr(unsigned char type)
+{
+    switch(type)
+    {
+        case 0x00: return "Reserved";
+        case 0x01: return "MPEG-1 Video";
+        case 0x02: return "MPEG-2 Video";
+        case 0x03: return "MPEG-1 Audio";
+        case 0x04: return "MPEG-2 Audio";
+        case 0x05: return "ISO 13818-1 private sections";
+        case 0x06: return "ISO 13818-1 PES private data";
+        case 0x07: return "ISO 13522 MHEG";
+        case 0x08: return "ISO 13818-1 DSM-CC";
+        case 0x09: return "ISO 13818-1 auxiliary";
+        case 0x0A: return "ISO 13818-6 multi-protocol encap";
+        case 0x0B: return "ISO 13818-6 DSM-CC U-N msgs";
+        case 0x0C: return "ISO 13818-6 stream descriptors";
+        case 0x0D: return "ISO 13818-6 sections";
+        case 0x0E: return "ISO 13818-1 auxiliary";
+        case 0x0F: return "MPEG-2 AAC Audio";
+        case 0x10: return "MPEG-4 Video";
+        case 0x11: return "MPEG-4 LATM AAC Audio";
+        case 0x12: return "MPEG-4 generic";
+        case 0x13: return "ISO 14496-1 SL-packetized";
+        case 0x14: return "ISO 13818-6 Synchronized Download Protocol";
+        case 0x1b: return "H.264 Video";
+        case 0x1c: return "MPEG-4 Audio";
+        case 0x80: return "DigiCipher II Video";
+        case 0x81: return "A52/AC-3 Audio";
+        case 0x82: return "HDMV DTS Audio";
+        case 0x83: return "LPCM Audio";
+        case 0x84: return "SDDS Audio";
+        case 0x85: return "ATSC Program ID";
+        case 0x86: return "DTS-HD Audio";
+        case 0x87: return "E-AC-3 Audio";
+        case 0x8a: return "DTS Audio";
+        case 0x91: return "A52b/AC-3 Audio";
+        case 0x92: return "DVD_SPU vls Subtitle";
+        case 0x94: return "SDDS Audio";
+        case 0xa0: return "MSCODEC Video";
+        case 0xa1: return "MSCODEC Audio";
+        case 0xa2: return "Generic Audio";
+        case 0xdb: return "iOS H.264 Video";
+        case 0xea: return "Private ES (VC-1)";
+        default:
+            if (0x80 <= type && type <= 0xFF)
+                return "User Private";
+            if (0x15 <= type && type <= 0x7F)
+                return "ISO 13818-1 Reserved";
+            else
+                return "Unknown";
+    }
+}
 
 static void
 handleSectionStart(struct section *sect, struct packet *pkt, unsigned char byte)
@@ -29,7 +154,8 @@ getSectionLength(struct section *sect, unsigned char byte)
         case 2:
             if (byte != sect->tid)   // verify Table ID
             {
-                printf("ERROR TID %d != %d\r\n", byte, sect->tid);
+                // some streams have unknown tables, so just ignore silently...
+                //printf("\nERROR TID %d != %d", byte, sect->tid);
                 sect->lengthState = 0;
             }
             break;
@@ -44,7 +170,7 @@ getSectionLength(struct section *sect, unsigned char byte)
 
             if (sect->len > 1021)
             {
-                printf("ERROR Section len = %d\n", sect->len);
+                printf("\nERROR Section len = %d\n", sect->len);
                 sect->lengthState = 0;
             }
 
@@ -184,61 +310,39 @@ parsePmtSection(struct stream *strm, struct section *sect)
     for (i = 0; i < (sect->offset - 4); i += 5)
     {
         strm->type = strm->pmt[i];
+        retVal = getPmtStreamType(strm);
 
-        if (strm->type == 0x1  ||
-            strm->type == 0x2  ||
-            strm->type == 0x80 ||
-            strm->type == 0x1b ||
-            strm->type == 0xea)
+        if (VIDEO == retVal)
         {
             strm->videoPID = (strm->pmt[i + 1] & 0x1f) << 8;
             strm->videoPID |= strm->pmt[i + 2];
 
-            if (strm->firstPMT == TRUE)
+            if (strm->firstPMT)
             {
-                printf("Video PID = %4d <0x%04x>, type = 0x%02x ",
-                        strm->videoPID, strm->videoPID, strm->type);
-                retVal = TRUE;
-
-                if (strm->type == 0x1)
-                {
-                    printf("H.261 video\n");
-                }
-                else if (strm->type == 0x2 ||
-                         strm->type == 0x80)
-                {
-                    printf("H.262 video\n");
-                }
-                else if (strm->type == 0x1b)
-                {
-                    printf("H.264 video\n");
-                }
-                else if (strm->type == 0xea)
-                {
-                    printf("VC-1 video\n");
-                }
+                printf("\nVideo PID = %4d <0x%04x>, type = 0x%02x %s",
+                       strm->videoPID, strm->videoPID, strm->type,
+                       getPmtStreamTypeStr(strm->type));
             }
         }
-        else if (strm->type == 0x3  ||
-                 strm->type == 0x4  ||
-                 strm->type == 0x81 ||
-                 strm->type == 0x6  ||
-                 strm->type == 0x82 ||
-                 strm->type == 0x83 ||
-                 strm->type == 0x84 ||
-                 strm->type == 0x85 ||
-                 strm->type == 0x86 ||
-                 strm->type == 0xa1 ||
-                 strm->type == 0xa2 ||
-                 strm->type == 0x11)
+        else if (AUDIO == retVal)
         {
             strm->audioPID = (strm->pmt[i + 1] & 0x1f) << 8;
             strm->audioPID |= strm->pmt[i + 2];
 
-            if (strm->firstPMT == TRUE)
+            if (strm->firstPMT)
             {
-                printf("Audio PID = %4d <0x%04x>, type = 0x%02x\n",
-                        strm->audioPID, strm->audioPID, strm->type);
+                printf("\nAudio PID = %4d <0x%04x>, type = 0x%02x %s",
+                       strm->audioPID, strm->audioPID, strm->type,
+                       getPmtStreamTypeStr(strm->type));
+            }
+        }
+        else
+        {
+            if (strm->firstPMT)
+            {
+                printf("\n      PID = <0x%04x>, type = 0x%02x %s",
+                      ((strm->pmt[i+1] & 0x1f) << 8) | strm->pmt[i+2], strm->type,
+                       getPmtStreamTypeStr(strm->type));
             }
         }
     }
@@ -435,33 +539,41 @@ discoverPktSize(struct stream* strm)
 {
     unsigned int i;
 
-    printf("\nread %d bytes to discover TS packet size...", strm->bufLen);
+    printf("\nread %d bytes to discover TS packet size...   ", strm->bufLen);
+    strm->tsPktSize = 0;
 
     for (i = 0; i < strm->bufLen; i++)
     {
-        if ((strm->buffer[i + 188] = SYNC_BYTE) &&
-            (strm->buffer[i + 376] = SYNC_BYTE))
+        if (strm->buffer[i] == SYNC_BYTE)
         {
-            strm->tsPktSize = 188;
-            break;
-        }
-        else if ((strm->buffer[i + 192] = SYNC_BYTE) &&
-                 (strm->buffer[i + 384] = SYNC_BYTE))
-        {
-            strm->tsPktSize = 192;
-            break;
-        }
-        else if ((strm->buffer[i + 204] = SYNC_BYTE) &&
-                 (strm->buffer[i + 408] = SYNC_BYTE))
-        {
-            strm->tsPktSize = 204;
-            break;
-        }
-        else if ((strm->buffer[i + 208] = SYNC_BYTE) &&
-                 (strm->buffer[i + 416] = SYNC_BYTE))
-        {
-            strm->tsPktSize = 208;
-            break;
+            if ((strm->buffer[i + 188] = SYNC_BYTE) &&
+                (strm->buffer[i + 376] = SYNC_BYTE))
+            {
+                printf("\nfound 3 consecutive SYNCs at 188 byte separation");
+                strm->tsPktSize = 188;
+                break;
+            }
+            else if ((strm->buffer[i + 192] = SYNC_BYTE) &&
+                     (strm->buffer[i + 384] = SYNC_BYTE))
+            {
+                printf("\nfound 3 consecutive SYNCs at 192 byte separation");
+                strm->tsPktSize = 192;
+                break;
+            }
+            else if ((strm->buffer[i + 204] = SYNC_BYTE) &&
+                     (strm->buffer[i + 408] = SYNC_BYTE))
+            {
+                printf("\nfound 3 consecutive SYNCs at 204 byte separation");
+                strm->tsPktSize = 204;
+                break;
+            }
+            else if ((strm->buffer[i + 208] = SYNC_BYTE) &&
+                     (strm->buffer[i + 416] = SYNC_BYTE))
+            {
+                printf("\nfound 3 consecutive SYNCs at 208 byte separation");
+                strm->tsPktSize = 208;
+                break;
+            }
         }
 
         strm->offset++;

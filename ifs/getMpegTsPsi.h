@@ -1,4 +1,6 @@
 
+#include "IfsIntf.h"
+
 #ifndef TRUE
 #define TRUE            1
 #define FALSE           0
@@ -29,6 +31,7 @@ struct stream
     unsigned short videoPID;
     unsigned short audioPID;
     unsigned char type;
+    IfsCodecType codecType;
 };
 
 struct packet
