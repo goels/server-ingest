@@ -616,6 +616,60 @@ discoverPktSize(struct stream* strm)
                 break;
             }
         }
+        else if ((strm->buffer[i+0] == 0) &&
+                 (strm->buffer[i+1] == 0) &&
+                 (strm->buffer[i+2] == 1))
+        {
+            int leave = TRUE;
+
+            switch (strm->buffer[i+3])
+            {
+                case 0xb0:
+                case 0xb1:
+                    printf("\nfound reserved start code");
+                    break;
+                case 0xb2:
+                    printf("\nfound user data start code");
+                    break;
+                case 0xb3:
+                case 0xb4:
+                case 0xb5:
+                case 0xb7:
+                    printf("\nfound sequence start code");
+                    break;
+                case 0xb8:
+                    printf("\nfound GOP start code");
+                    break;
+                case 0xb9:
+                    printf("\nfound program end start code");
+                    break;
+                case 0xba:
+                    printf("\nfound pack header start code");
+                    break;
+                case 0xbb:
+                    printf("\nfound system header start code");
+                    break;
+                case 0xbc:
+                    printf("\nfound PS map start code");
+                    break;
+                case 0xbd:
+                case 0xbf:
+                    printf("\nfound private start code");
+                    break;
+                case 0xbe:
+                    printf("\nfound padding start code");
+                    break;
+                default:
+                    leave = FALSE;
+                    break;
+            }
+
+            if (TRUE == leave)
+            {
+                printf(" at offset[%d]\n", strm->offset);
+                break;
+            }
+        }
 
         strm->offset++;
     }
