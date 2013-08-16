@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "getMpegTsPsi.h"
+#undef DEBUG_LOGS
 
 #define OTHER   0
 #define VIDEO   1
@@ -76,7 +77,7 @@ getPmtStreamType(struct stream* strm)
     }
 }
 
-static char*
+static const char*
 getPmtStreamTypeStr(unsigned char type)
 {
     switch(type)
@@ -155,7 +156,9 @@ getSectionLength(struct section *sect, unsigned char byte)
             if (byte != sect->tid)   // verify Table ID
             {
                 // some streams have unknown tables, so just ignore silently...
-                //printf("\nERROR TID %d != %d", byte, sect->tid);
+#ifdef DEBUG_LOGS
+                printf("\nERROR TID %d != %d", byte, sect->tid);
+#endif
                 sect->lengthState = 0;
             }
             break;
@@ -166,8 +169,9 @@ getSectionLength(struct section *sect, unsigned char byte)
 
         case 0:
             sect->len |= byte;
-            // printf("Section len = %d\n", sect->len);
-
+#ifdef DEBUG_LOGS
+            printf("\nSection len = %d\n", sect->len);
+#endif
             if (sect->len > 1021)
             {
                 printf("\nERROR Section len = %d\n", sect->len);
@@ -275,13 +279,27 @@ handlePatSection(struct stream *strm, struct section *sect, struct packet *pkt)
     unsigned short i, bytesLeft = (strm->bufLen - strm->pos);
     unsigned short sectBytes = (bytesLeft >= sect->len)? sect->len : bytesLeft;
 
+#ifdef DEBUG_LOGS
+    printf("bytesLeft:%d = (strm->bufLen:%d - strm->pos:%d);\n",
+           bytesLeft, strm->bufLen, strm->pos);
+    printf("sectBytes(%d) = (bytesLeft >= sect->len:%d)? sect->len:bytesLeft;\n",
+            sectBytes, sect->len);
+#endif
     // if the TS packet doesn't have the required section bytes...
     if (pkt->length <= sectBytes)
+    {
         sectBytes = pkt->length;      // only read what's left
+#ifdef DEBUG_LOGS
+        printf("sectBytes:%d = pkt->length:%d\n",
+               sectBytes, pkt->length);
+#endif
+    }
 
     for (i = 0; i < sectBytes; i++)
     {
-        //printf("PAT[%d] = 0x%02x\n", sect->offset, strm->buffer[strm->pos+i]);
+#ifdef DEBUG_LOGS
+        printf("PAT[%d] = 0x%02x\n", sect->offset, strm->buffer[strm->pos+i]);
+#endif
         strm->pat[sect->offset++] = strm->buffer[strm->pos + i];
     }
 
@@ -296,7 +314,16 @@ handlePatSection(struct stream *strm, struct section *sect, struct packet *pkt)
         sect->read = FALSE;
 
         if (sect->number == sect->lastNumber)
+        {
             retVal = parsePatSection(strm, sect);
+        }
+        else
+        {
+#ifdef DEBUG_LOGS
+            printf("sect->number:%d != sect->lastNumber:%d\n",
+                   sect->number, sect->lastNumber);
+#endif
+        }
     }
 
     return retVal;
@@ -317,7 +344,9 @@ parsePmtSection(struct stream *strm, struct section *sect)
             strm->videoPID = (strm->pmt[i + 1] & 0x1f) << 8;
             strm->videoPID |= strm->pmt[i + 2];
 
+#ifndef DEBUG_LOGS
             if (strm->firstPMT)
+#endif
             {
                 printf("\nVideo PID = %4d <0x%04x>, type = 0x%02x %s",
                        strm->videoPID, strm->videoPID, strm->type,
@@ -329,7 +358,9 @@ parsePmtSection(struct stream *strm, struct section *sect)
             strm->audioPID = (strm->pmt[i + 1] & 0x1f) << 8;
             strm->audioPID |= strm->pmt[i + 2];
 
+#ifndef DEBUG_LOGS
             if (strm->firstPMT)
+#endif
             {
                 printf("\nAudio PID = %4d <0x%04x>, type = 0x%02x %s",
                        strm->audioPID, strm->audioPID, strm->type,
@@ -338,7 +369,9 @@ parsePmtSection(struct stream *strm, struct section *sect)
         }
         else
         {
+#ifndef DEBUG_LOGS
             if (strm->firstPMT)
+#endif
             {
                 printf("\n      PID = <0x%04x>, type = 0x%02x %s",
                       ((strm->pmt[i+1] & 0x1f) << 8) | strm->pmt[i+2], strm->type,
@@ -364,7 +397,9 @@ handlePmtSection(struct stream *strm, struct section *sect, struct packet *pkt)
 
     for (i = 0; i < sectBytes; i++)
     {
-        //printf("PMT[%d]: 0x%02x\n", sect->offset, strm->buffer[strm->pos+i]);
+#ifdef DEBUG_LOGS
+        printf("PMT[%d]: 0x%02x\n", sect->offset, strm->buffer[strm->pos+i]);
+#endif
         strm->pmt[sect->offset++] = strm->buffer[strm->pos + i];
     }
 
@@ -401,7 +436,9 @@ handlePktHeader(struct stream *strm, struct section *sect, struct packet *pkt)
         case 1:     // low 8 bits of PID
             temp = strm->buffer[strm->pos];
             pkt->pid |= temp;
-            //printf(" PID=%4x", pkt->pid);
+#ifdef DEBUG_LOGS
+            printf("\nPID = %4x", pkt->pid);
+#endif
             break;
         case 0:     // TS header complete, next: process section...
             if (pkt->pusi == 1)
@@ -468,8 +505,10 @@ decode_mp2ts(struct stream* strm, unsigned char **pat, unsigned char **pmt)
                 }
                 else if (packet.pointer != 0)
                 {
+                    // if there is a pointer field value, add one to the length
+                    // state machine to account for the pointer field itself...
                     if (--packet.pointer == 0)
-                        section.lengthState = SECT_LEN_STATES;
+                        section.lengthState = SECT_LEN_STATES+1;
                 }
                 else if (section.lengthState != 0)
                 {
@@ -511,8 +550,10 @@ decode_mp2ts(struct stream* strm, unsigned char **pat, unsigned char **pmt)
                 }
                 else if (packet.pointer != 0)
                 {
+                    // if there is a pointer field value, add one to the length
+                    // state machine to account for the pointer field itself...
                     if (--packet.pointer == 0)
-                        section.lengthState = SECT_LEN_STATES;
+                        section.lengthState = SECT_LEN_STATES+1;
                 }
                 else if (section.lengthState != 0)
                 {
