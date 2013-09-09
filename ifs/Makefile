@@ -160,7 +160,9 @@ NDX_SOURCES = \
 	ifs_file.c \
 	ifs_operations.c \
 	ifs_utils.c \
-	NdxDump.c
+	ifs_GenTrickPlay.c \
+	getMpegTsPsi.c \
+	NdxDump.c 
 
 SIM_SOURCES = \
 	ifs_mpeg2ts_parse.c \
@@ -173,11 +175,14 @@ SIM_SOURCES = \
 	ifs_file.c \
 	ifs_operations.c \
 	ifs_utils.c \
+	ifs_GenTrickPlay.c \
+	getMpegTsPsi.c \
 	IfsSim.c
 
 APP_SOURCES = \
+	ifs_GenTrickPlay.c \
 	getMpegTsPsi.c \
-	indexVideo.c
+	indexVideo.c 
 
 #
 # Intermediate files

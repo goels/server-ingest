@@ -86,6 +86,13 @@
 extern log4c_category_t * ifs_RILogCategory;
 #define RILOG_CATEGORY ifs_RILogCategory
 
+//#define WRITE_TO_TEXT_INDEX_FILE
+
+#ifdef WRITE_TO_TEXT_INDEX_FILE
+static FILE *indexFile = NULL;
+static void writeToIndexFile(IfsHandle ifsHandle);
+#endif
+
 extern IfsIndexDumpMode indexDumpMode;
 extern ullong whatAll;
 extern unsigned indexCase;
@@ -399,6 +406,20 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
                 g_static_mutex_unlock(&(ifsHandle->mutex));
                 return IfsReturnCodeFileWritingError;
             }
+
+#ifdef WRITE_TO_TEXT_INDEX_FILE
+            {
+                IfsH262Index ifsIndex = ifsHandle->entry.what;
+
+                if(ifsIndex & IfsIndexStartPicture)
+                {
+                    // Write to index text file
+                    writeToIndexFile(ifsHandle);
+                    ifsHandle->entry.what = 0;
+                }
+            }
+#endif
+
 #ifdef FLUSH_ALL_WRITES
             if (fflush(ifsHandle->pNdex))
             {
@@ -424,6 +445,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
         g_static_mutex_unlock(&(ifsHandle->mutex));
         return IfsReturnCodeFileSeekingError;
     }
+
     if (fwrite(pData, sizeof(IfsPacket), numPackets, ifsHandle->pMpeg)
             != numPackets)
     {
@@ -434,6 +456,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
         g_static_mutex_unlock(&(ifsHandle->mutex));
         return IfsReturnCodeFileWritingError;
     }
+
 #ifdef FLUSH_ALL_WRITES
     if (fflush(ifsHandle->pMpeg))
     {
@@ -449,6 +472,64 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
     g_static_mutex_unlock(&(ifsHandle->mutex));
     return IfsReturnCodeNoErrorReported;
 }
+
+#ifdef WRITE_TO_TEXT_INDEX_FILE
+static void writeToIndexFile(IfsHandle ifsHandle)
+{
+    {
+        int64_t bytePosition;
+        char str[512] = "";
+        char temp[32];
+        if(indexFile == NULL)
+        {
+            static unsigned short uniqueNumber = 0u;
+            static GStaticMutex uniqueLock = G_STATIC_MUTEX_INIT;
+
+            unsigned short localUniqueNum = 0u;
+            g_static_mutex_lock(&uniqueLock);
+            localUniqueNum = uniqueNumber++;
+            g_static_mutex_unlock(&uniqueLock);
+
+            sprintf(str, "%08lX_%04X_index.txt", time(NULL), localUniqueNum);
+            //sprintf(str, "%s_%d_index.txt", ifsHandle->ndex, localUniqueNum);
+            printf(" index file: %s\n", str);
+            indexFile =  fopen(str, "w");
+            sprintf(str, "Entry_type    Pict_type       	time_offset             packet#             byte_offset              IfsIndex\n");
+            fwrite(str, strlen(str), 1, indexFile);
+            sprintf(str, "------------------------------------------------------------------------------------------------------------------------\n");
+            fwrite(str, strlen(str), 1, indexFile);
+        }
+        // Calculate the byte offset for the packet number
+        {
+            IfsH262Index ifsIndex = ifsHandle->entry.what;
+            switch (ifsIndex & IfsIndexStartPicture)
+            {
+            case IfsIndexStartPicture0:
+                sprintf(temp, "V\t\tI\t\t");
+                break;
+            case IfsIndexStartPicture1:
+                sprintf(temp, "V\t\tP\t\t");
+                break;
+            case IfsIndexStartPicture:
+                sprintf(temp, "V\t\tB\t\t");
+                break;
+            default:
+                sprintf(temp, " \t\t");
+                break;
+            }
+        }
+        fwrite(temp, strlen(temp), 1, indexFile);
+        sprintf(str, "%s\t\t%6llu\t\t", IfsToSecs(ifsHandle->entry.when, temp), (long long unsigned int)ifsHandle->entry.realWhere);
+        fwrite(str, strlen(str), 1, indexFile);
+
+        bytePosition = ((int64_t) ifsHandle->entry.realWhere) * IFS_TRANSPORT_PACKET_SIZE;
+        sprintf(str, "%12lld\t\t", (int64_t)bytePosition);
+        fwrite(str, strlen(str), 1, indexFile);
+        sprintf(str, "0X%08lX%08lX\n", (unsigned long)(ifsHandle->entry.what>>32), (unsigned long)ifsHandle->entry.what);
+        fwrite(str, strlen(str), 1, indexFile);
+    }
+}
+#endif
 
 IfsReturnCode IfsConvert(IfsHandle srcHandle, // Input
         IfsHandle dstHandle, // Input (must be a writer)

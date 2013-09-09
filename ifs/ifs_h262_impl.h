@@ -59,30 +59,11 @@
 #include <glib.h>
 #include <stdio.h>
 #include "IfsIntf.h"
+#include "ifs_streamdefs.h"
 
 typedef enum
 {
-    // Adaptation events:
-
-    IfsIndexAdaptAfeeBit = (unsigned) 1 << 0, // Adaptation field extension exists
-    IfsIndexAdaptTpdeBit = (unsigned) 1 << 1, // Transport private data exists
-    IfsIndexAdaptSpeBit = (unsigned) 1 << 2, // Splicing point exists
-    IfsIndexAdaptOpcreBit = (unsigned) 1 << 3, // Old PCR exists
-    IfsIndexAdaptPcreBit = (unsigned) 1 << 4, // PCR exists
-    IfsIndexAdaptEspChange = (unsigned) 1 << 5, // Elementary stream priority CHANGED
-    IfsIndexAdaptRaiBit = (unsigned) 1 << 6, // Random Access indicator
-    IfsIndexAdaptDiBit = (unsigned) 1 << 7, // Discontinuity indicator
-
-    // Transport header events:
-
-    IfsIndexHeaderBadSync = (unsigned) 1 << 8, // Sync byte was not 0x47
-    IfsIndexHeaderTpChange = (unsigned) 1 << 9, // Transport Priority CHANGED
-    IfsIndexHeaderPusiBit = (unsigned) 1 << 10, // Payload Unit Start Indicator
-    IfsIndexHeaderTeiBit = (unsigned) 1 << 11, // Transport Error Indicator
-    IfsIndexHeaderCcError = (unsigned) 1 << 12, // Continuity counter ERROR
-    IfsIndexHeaderScChange = (unsigned) 1 << 13, // Scrambling control CHANGED
-    IfsIndexHeaderAfeBit = (unsigned) 1 << 14, // Adaptation field exists
-    IfsIndexHeaderPdeBit = (unsigned) 1 << 15, // Payload data exists
+	// **** Bits 0-15 *****are Transport stream header bits, defined in Ifs_streamdef.h
 
     // Start Code events:
 
@@ -96,54 +77,7 @@ typedef enum
     IfsIndexStartExtension = (unsigned) 1 << 23, // EXTENSION_START     B5
 
     // Extension Events:
-
-    IfsIndexExtReserved = (unsigned) 1 << 24, // RESERVED                        0, 6 and B-F
-    IfsIndexExtSequence = (unsigned) 1 << 25, // SEQUENCE_EXTENSION_ID           1
-    IfsIndexExtDisplay = (unsigned) 1 << 26, // SEQUENCE_DISPLAY_EXTENSION_ID   2
-    IfsIndexExtQuantMat = (unsigned) 1 << 27, // QUANT_MATRIX_EXTENSION_ID       3
-    IfsIndexExtCopyright = (unsigned) 1 << 28, // COPYRIGHT_EXTENSION_ID          4
-    IfsIndexExtScalable = (unsigned) 1 << 29, // SEQUENCE_SCALABLE_EXTENSION_ID  5
-    IfsIndexExtPictOther = (unsigned) 1 << 30, // Other PICTURE_EXTENSION_IDs     7 and 9-A
-    IfsIndexExtPictCode = (unsigned) 1 << 31,
-// PICTURE_CODING_EXTENSION_ID     8
-
-#ifdef DEBUG_ALL_PES_CODES
-
-    IfsIndexStartSlice = 1uLL << 32, // SLICE                     01 - AF
-    IfsIndexStartReservedB0 = 1uLL << 33, // RESERVED                  B0
-    IfsIndexStartReservedB1 = 1uLL << 34, // RESERVED                  B1
-    IfsIndexStartReservedB6 = 1uLL << 35, // RESERVED                  B6
-    IfsIndexStartMpegEnd = 1uLL << 36, // MPEG_PROGRAM_END_CODE     B9
-    IfsIndexStartPack = 1uLL << 37, // PACK_START_CODE           BA
-    IfsIndexStartSysHeader = 1uLL << 38, // SYSTEM_HEADER_START_CODE  BB
-    IfsIndexStartProgramMap = 1uLL << 39, // PROGRAM_STREAM_MAP        BC
-    IfsIndexStartPrivate1 = 1uLL << 40, // PRIVATE_STREAM_1          BD
-    IfsIndexStartPadding = 1uLL << 41, // PADDING_STREAM            BE
-    IfsIndexStartPrivate2 = 1uLL << 42, // PRIVATE_STREAM_2          BF
-    IfsIndexStartAudio = 1uLL << 43, // AUDIO                     C0 - DF
-    IfsIndexStartVideo = 1uLL << 44, // VIDEO                     E0 - EF
-    IfsIndexStartEcm = 1uLL << 45, // ECM_STREAM                F0
-    IfsIndexStartEmm = 1uLL << 46, // EMM_STREAM                F1
-    IfsIndexStartDsmCc = 1uLL << 47, // DSM_CC_STREAM             F2
-    IfsIndexStart13522 = 1uLL << 48, // ISO_IEC_13522_STREAM      F3
-    IfsIndexStartItuTypeA = 1uLL << 49, // ITU_T_REC_H_222_1_TYPE_A  F4
-    IfsIndexStartItuTypeB = 1uLL << 50, // ITU_T_REC_H_222_1_TYPE_B  F5
-    IfsIndexStartItuTypeC = 1uLL << 51, // ITU_T_REC_H_222_1_TYPE_C  F6
-    IfsIndexStartItuTypeD = 1uLL << 52, // ITU_T_REC_H_222_1_TYPE_D  F7
-    IfsIndexStartItuTypeE = 1uLL << 53, // ITU_T_REC_H_222_1_TYPE_E  F8
-    IfsIndexStartAncillary = 1uLL << 54, // ANCILLARY_STREAM          F9
-    IfsIndexStartRes_FA_FE = 1uLL << 55, // RESERVED                  FA - FE
-    IfsIndexStartDirectory = 1uLL << 56, // PROGRAM_STREAM_DIRECTORY  FF
-
-    IfsIndexInfoContainsPts = 1uLL << 57,
-    IfsIndexInfoProgSeq = 1uLL << 58,
-    IfsIndexInfoRepeatFirst = 1uLL << 59,
-    IfsIndexInfoTopFirst = 1uLL << 60,
-    IfsIndexInfoProgFrame = 1uLL << 61,
-    IfsIndexInfoStructure0 = 1uLL << 62,
-    IfsIndexInfoStructure1 = 1uLL << 63,
-
-#endif
+    // defined in Ifs_streamdef.h
 
 } IfsH262Index;
 
@@ -151,163 +85,75 @@ typedef enum
 #define IfsIndexInfoStructure (IfsIndexInfoStructure0|IfsIndexInfoStructure1)
 #define IfsIndexInfoProgRep   (IfsIndexInfoRepeatFirst|IfsIndexInfoTopFirst)
 
+
+typedef enum
+{
+	// H.264 bits mask:
+	IfsHeaderBitMask_h262 =
+            IfsIndexStartPicture |
+            IfsIndexStartUserData |
+            IfsIndexStartSeqHeader |
+            IfsIndexStartSeqError |
+            IfsIndexStartExtension |
+            IfsIndexStartSeqEnd |
+            IfsIndexStartGroup
+
+} IfsHeaderMask_h262;
+
 typedef enum
 {
 
     IfsH262IndexerSettingVerbose = // index all possible events
 
-    // Adaptation events:
-
-    IfsIndexAdaptAfeeBit | IfsIndexAdaptTpdeBit | IfsIndexAdaptSpeBit
-            | IfsIndexAdaptOpcreBit | IfsIndexAdaptPcreBit
-            | IfsIndexAdaptEspChange | IfsIndexAdaptRaiBit | IfsIndexAdaptDiBit
-            |
-
+    		// Adaptation events:
+    		IfsHeaderBitMask_Adptation  |
             // Transport header events:
-
-            IfsIndexHeaderBadSync | IfsIndexHeaderTpChange
-            | IfsIndexHeaderPusiBit | IfsIndexHeaderTeiBit
-            | IfsIndexHeaderCcError | IfsIndexHeaderPdeBit
-            | IfsIndexHeaderAfeBit | IfsIndexHeaderScChange |
-
-    // Start Code events:
-
-            IfsIndexStartPicture | IfsIndexStartUserData
-            | IfsIndexStartSeqHeader | IfsIndexStartSeqError
-            | IfsIndexStartExtension | IfsIndexStartSeqEnd | IfsIndexStartGroup
-            |
-
-            // Extension Events:
-
-            IfsIndexExtReserved | IfsIndexExtSequence | IfsIndexExtDisplay
-            | IfsIndexExtQuantMat | IfsIndexExtCopyright | IfsIndexExtScalable
-            | IfsIndexExtPictOther | IfsIndexExtPictCode |
+    		IfsHeaderBitMask_Transport	|
+    		// Start Code events: H.262
+    		IfsHeaderBitMask_h262 |
+    		// Extension Events:
+            IfsHeaderBitMask_Extension |
 
 #ifdef DEBUG_ALL_PES_CODES
-
-            IfsIndexStartSlice |
-            IfsIndexStartReservedB0 |
-            IfsIndexStartReservedB1 |
-            IfsIndexStartReservedB6 |
-            IfsIndexStartMpegEnd |
-            IfsIndexStartPack |
-            IfsIndexStartSysHeader |
-            IfsIndexStartProgramMap |
-            IfsIndexStartPrivate1 |
-            IfsIndexStartPadding |
-            IfsIndexStartPrivate2 |
-            IfsIndexStartAudio |
-            IfsIndexStartVideo |
-            IfsIndexStartEcm |
-            IfsIndexStartEmm |
-            IfsIndexStartDsmCc |
-            IfsIndexStart13522 |
-            IfsIndexStartItuTypeA |
-            IfsIndexStartItuTypeB |
-            IfsIndexStartItuTypeC |
-            IfsIndexStartItuTypeD |
-            IfsIndexStartItuTypeE |
-            IfsIndexStartAncillary |
-            IfsIndexStartRes_FA_FE |
-            IfsIndexStartDirectory |
-
-            IfsIndexInfoContainsPts |
-            IfsIndexInfoProgSeq |
-            IfsIndexInfoRepeatFirst |
-            IfsIndexInfoTopFirst |
-            IfsIndexInfoProgFrame |
-            IfsIndexInfoStructure0 |
-            IfsIndexInfoStructure1 |
-
+            IfsHeaderBitMask_PES |
 #endif
 
             0,
 
     IfsH262IndexerSettingUnitest =
 
-    // Adaptation events:
-
-    IfsIndexAdaptAfeeBit | IfsIndexAdaptTpdeBit | IfsIndexAdaptSpeBit
-            | IfsIndexAdaptOpcreBit | IfsIndexAdaptPcreBit
-            | IfsIndexAdaptEspChange | IfsIndexAdaptRaiBit | IfsIndexAdaptDiBit
-            |
-
+    		// Adaptation events:
+    		IfsHeaderBitMask_Adptation  |
             // Transport header events:
-
-            IfsIndexHeaderBadSync | IfsIndexHeaderTpChange
-            | IfsIndexHeaderPusiBit | IfsIndexHeaderTeiBit
-            | IfsIndexHeaderCcError | IfsIndexHeaderScChange |
-
-    // Start Code events:
-
-            IfsIndexStartPicture | IfsIndexStartUserData
-            | IfsIndexStartSeqHeader | IfsIndexStartSeqError
-            | IfsIndexStartExtension | IfsIndexStartSeqEnd | IfsIndexStartGroup
-            |
-
+    		IfsHeaderBitMask_Transport	|
+    		// Start Code events: H.262
+       		IfsHeaderBitMask_h262 |
             // Extension Events:
-
-            IfsIndexExtReserved | IfsIndexExtSequence | IfsIndexExtDisplay
-            | IfsIndexExtQuantMat | IfsIndexExtCopyright | IfsIndexExtScalable
-            | IfsIndexExtPictOther | IfsIndexExtPictCode |
+            IfsHeaderBitMask_Extension |
 
 #ifdef DEBUG_ALL_PES_CODES
-
-            IfsIndexStartSlice |
-            IfsIndexStartReservedB0 |
-            IfsIndexStartReservedB1 |
-            IfsIndexStartReservedB6 |
-            IfsIndexStartMpegEnd |
-            IfsIndexStartPack |
-            IfsIndexStartSysHeader |
-            IfsIndexStartProgramMap |
-            IfsIndexStartPrivate1 |
-            IfsIndexStartPadding |
-            IfsIndexStartPrivate2 |
-            IfsIndexStartAudio |
-            IfsIndexStartVideo |
-            IfsIndexStartEcm |
-            IfsIndexStartEmm |
-            IfsIndexStartDsmCc |
-            IfsIndexStart13522 |
-            IfsIndexStartItuTypeA |
-            IfsIndexStartItuTypeB |
-            IfsIndexStartItuTypeC |
-            IfsIndexStartItuTypeD |
-            IfsIndexStartItuTypeE |
-            IfsIndexStartAncillary |
-            IfsIndexStartRes_FA_FE |
-            IfsIndexStartDirectory |
-
-            IfsIndexInfoContainsPts |
-            IfsIndexInfoProgSeq |
-            IfsIndexInfoRepeatFirst |
-            IfsIndexInfoTopFirst |
-            IfsIndexInfoProgFrame |
-            IfsIndexInfoStructure0 |
-            IfsIndexInfoStructure1 |
-
+            IfsHeaderBitMask_PES |
 #endif
 
             0,
 
     IfsH262IndexerSettingDefPlus = // Default plus PCR and PTS indexing
 
-    IfsIndexAdaptPcreBit | IfsIndexStartPicture | IfsIndexStartSeqHeader |
+    		IfsIndexAdaptPcreBit |
+    		IfsIndexStartPicture |
+    		IfsIndexStartSeqHeader |
 
 #ifdef DEBUG_ALL_PES_CODES
-
             IfsIndexStartVideo |
             IfsIndexInfoContainsPts |
-
 #endif
 
             0,
 
     IfsH262IndexerSettingDefault =
 
-    IfsIndexStartPicture | IfsIndexStartSeqHeader |
-
+    		IfsIndexStartPicture |
+    		IfsIndexStartSeqHeader |
     0,
 
 } IfsH262IndexerSetting;

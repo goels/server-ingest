@@ -150,6 +150,15 @@ const char * IfsReturnCodeToString(const IfsReturnCode ifsReturnCode)
     return "unknown";
 }
 
+
+float IfsConvertToSecs(char * const temp)
+{
+	if(temp == NULL)
+		return 0;
+	else
+		return(atof(temp));
+}
+
 char * IfsToSecs(const IfsClock ifsClock, char * const temp) // temp[] must be at least 23 characters, returns temp
 {
     // Largest number is -18446744073.709551615 = 22 characters

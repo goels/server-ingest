@@ -73,5 +73,7 @@ void IfsSetMode(const IfsIndexDumpMode ifsIndexDumpMode,
         const ullong ifsIndexerSetting);
 IfsReturnCode IfsFreeInfo(IfsInfo * pIfsInfo);
 IfsReturnCode IfsHandleInfo(IfsHandle ifsHandle, IfsInfo ** ppIfsInfo);
+float IfsConvertToSecs(char * const temp);
+
 
 #endif

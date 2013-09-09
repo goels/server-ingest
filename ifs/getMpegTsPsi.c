@@ -1,14 +1,48 @@
 
+/*
+ * Copyright (C) 2013  Cable Television Laboratories, Inc.
+ * Contact: http://www.cablelabs.com/
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "getMpegTsPsi.h"
 #undef DEBUG_LOGS
-
 #define OTHER   0
 #define VIDEO   1
 #define AUDIO   2
+
+
+//--------------------------
+int giStreamPacketSize = 188; // mpeg2 by default, can be set to 192 later
+//---------------------------
+
+
+
 int
 getPmtStreamType(struct stream* strm)
 {
@@ -46,7 +80,7 @@ getPmtStreamType(struct stream* strm)
             return VIDEO;            // "H.264 Video";
         case 0x1c: return AUDIO;     // "MPEG-4 Audio";
         case 0x80:
-            strm->codecType = IfsCodecTypeH263;
+            strm->codecType = IfsCodecTypeH262;
             return VIDEO;            // "DigiCipher II Video";
         case 0x81: return AUDIO;     // "A52/AC-3 Audio";
         case 0x82: return AUDIO;     // "HDMV DTS Audio";
@@ -188,34 +222,52 @@ static void
 handlePmtSectionState(struct section *sect, unsigned char byte)
 {
     --sect->len;
+    if(sect->prog_info_len && (sect->state == 1))
+    	;//printf("program sec length: %d\n", sect->prog_info_len);
+    else
     --sect->state;
 
     switch (sect->state)
     {
-        case 8:     // Prog Num high 8 bits
+        case 10:     // Prog Num high 8 bits
             break;
-        case 7:     // Prog Num low 8 bits
+        case 9:     // Prog Num low 8 bits
             break;
-        case 6:     // RES / VER / CNI
+        case 8:     // RES / VER / CNI
             break;
-        case 5:     // Sect Num
+        case 7:     // Sect Num
             sect->number = byte;
 
             if (sect->number == 0)
                 sect->offset = 0;
             break;
-        case 4:     // Last Sect Num
+        case 6:     // Last Sect Num
             sect->lastNumber = byte;
             break;
-        case 3:     // PCR PID high 5 bits
+        case 5:     // PCR PID high 5 bits
             break;
-        case 2:     // PCR PID low 8 bits
+        case 4:     // PCR PID low 8 bits
             break;
-        case 1:     // Program Info Len high 4 bits
+        case 3:     // Program Info Len high 4 bits
+        	sect->prog_info_len = (byte &0xf) << 8;
             break;
-        case 0:     // Program Info Len low 8 bits
-            sect->read = TRUE;
-            break;
+        case 2:     // Program Info Len low 8 bits
+        	sect->prog_info_len |= byte;
+           	if(sect->prog_info_len)
+            	sect->prog_info_len--;
+           	else
+           	{
+           		sect->state = 0;
+           		sect->read = TRUE;
+           	}
+           	break;
+        case 1:
+          	if(sect->prog_info_len)
+           		sect->prog_info_len--;
+             break;
+        case 0:
+    		sect->read = TRUE;
+    		break;
     }
 }
 
@@ -269,6 +321,9 @@ parsePatSection(struct stream *strm, struct section *sect)
     }
 
     strm->firstPAT = FALSE;
+    //printf("PAT found done !\n");
+    strm->flags &= ~(FLAGS_FOUND_PAT_SEC);	// clear the section flag
+    strm->flags |= FLAGS_FOUND_PAT;			// set the pat found flag
     return retVal;
 }
 
@@ -333,8 +388,9 @@ static int
 parsePmtSection(struct stream *strm, struct section *sect) 
 {
     int i, retVal = FALSE;
+    int es_info_length = 0;
 
-    for (i = 0; i < (sect->offset - 4); i += 5)
+    for (i = 0; i < (sect->offset - 4); )
     {
         strm->type = strm->pmt[i];
         retVal = getPmtStreamType(strm);
@@ -348,7 +404,7 @@ parsePmtSection(struct stream *strm, struct section *sect)
             if (strm->firstPMT)
 #endif
             {
-                printf("\nVideo PID = %4d <0x%04x>, type = 0x%02x %s",
+                printf("\nVideo PID = %4d <0x%04x>, type = 0x%02x %s\n",
                        strm->videoPID, strm->videoPID, strm->type,
                        getPmtStreamTypeStr(strm->type));
             }
@@ -362,7 +418,7 @@ parsePmtSection(struct stream *strm, struct section *sect)
             if (strm->firstPMT)
 #endif
             {
-                printf("\nAudio PID = %4d <0x%04x>, type = 0x%02x %s",
+                printf("Audio PID = %4d <0x%04x>, type = 0x%02x %s\n",
                        strm->audioPID, strm->audioPID, strm->type,
                        getPmtStreamTypeStr(strm->type));
             }
@@ -373,14 +429,21 @@ parsePmtSection(struct stream *strm, struct section *sect)
             if (strm->firstPMT)
 #endif
             {
-                printf("\n      PID = <0x%04x>, type = 0x%02x %s",
+                printf("\n      PID = <0x%04x>, type = 0x%02x %s\n",
                       ((strm->pmt[i+1] & 0x1f) << 8) | strm->pmt[i+2], strm->type,
                        getPmtStreamTypeStr(strm->type));
             }
         }
+
+        //Now read the es_info_length and skip over
+        es_info_length = (strm->pmt[i+3] & 0xf << 8) | (strm->pmt[i+4]);
+        i += (es_info_length + 5); // Skip over 4 bytes of stream type, pid and length and the length itself
     }
 
     strm->firstPMT = FALSE;
+    //printf("PAT found done !\n");
+    strm->flags &= ~(FLAGS_FOUND_PMT_SEC);	// clear the section flag
+    strm->flags |= FLAGS_FOUND_PMT;			// set the pmt found flag
     return retVal;
 }
 
@@ -459,7 +522,12 @@ decode_mp2ts(struct stream* strm, unsigned char **pat, unsigned char **pmt)
     struct packet packet = { 0 };
     struct section section = { 0 };
 
-    if (strm->buffer[0] == SYNC_BYTE)
+    if (strm->offset > 0) // 192 byte packets
+    {
+        packet.length = strm->tsPktSize-1;      // TS_PKT_SIZE - sync byte
+        packet.headerState = 3;                 // TS_HDR_SIZE - sync byte
+    }
+    else if (strm->buffer[0] == SYNC_BYTE || strm->buffer[4] == SYNC_BYTE)
     {
         packet.length = strm->tsPktSize-1;      // TS_PKT_SIZE - sync byte
         packet.headerState = 3;                 // TS_HDR_SIZE - sync byte
@@ -484,6 +552,8 @@ decode_mp2ts(struct stream* strm, unsigned char **pat, unsigned char **pmt)
             {
                 if (handlePatSection(strm, &section, &packet))
                 {
+                    //printf("PAT section: %d\n", section.lastNumber);
+                    strm->flags |= FLAGS_FOUND_PAT_SEC;
                     if (NULL != pat)
                     {
                         int len = (strm->tsPktSize * (1 + section.lastNumber));
@@ -528,6 +598,9 @@ decode_mp2ts(struct stream* strm, unsigned char **pat, unsigned char **pmt)
             {
                 if (handlePmtSection(strm, &section, &packet))
                 {
+                    //printf("PMT section: %d\n", section.lastNumber);
+                    strm->flags |= FLAGS_FOUND_PMT_SEC;
+
                     if (NULL != pmt)
                     {
                         int len = (strm->tsPktSize * (1 + section.lastNumber));
@@ -580,48 +653,47 @@ discoverPktSize(struct stream* strm)
 {
     unsigned int i;
 
-    printf("\nread %d bytes to discover TS packet size...   ", strm->bufLen);
+    printf("\nread %d bytes to discover TS packet size...\n ", strm->bufLen);
     strm->tsPktSize = 0;
 
     for (i = 0; i < strm->bufLen; i++)
     {
         if (strm->buffer[i] == SYNC_BYTE)
         {
-            if ((strm->buffer[i + 188] = SYNC_BYTE) &&
-                (strm->buffer[i + 376] = SYNC_BYTE))
-            {
-                printf("\nfound 3 consecutive SYNCs at 188 byte separation");
-                strm->tsPktSize = 188;
-                break;
-            }
-            else if ((strm->buffer[i + 192] = SYNC_BYTE) &&
-                     (strm->buffer[i + 384] = SYNC_BYTE))
-            {
-                printf("\nfound 3 consecutive SYNCs at 192 byte separation");
-                strm->tsPktSize = 192;
-                break;
-            }
-            else if ((strm->buffer[i + 204] = SYNC_BYTE) &&
-                     (strm->buffer[i + 408] = SYNC_BYTE))
-            {
-                printf("\nfound 3 consecutive SYNCs at 204 byte separation");
-                strm->tsPktSize = 204;
-                break;
-            }
-            else if ((strm->buffer[i + 208] = SYNC_BYTE) &&
-                     (strm->buffer[i + 416] = SYNC_BYTE))
-            {
-                printf("\nfound 3 consecutive SYNCs at 208 byte separation");
-                strm->tsPktSize = 208;
-                break;
-            }
+		if ((strm->buffer[i + 188] == SYNC_BYTE) &&
+		    (strm->buffer[i + 376] == SYNC_BYTE))
+		{
+		    //printf("\nfound 3 consecutive SYNCs at 188 byte separation");
+		    strm->tsPktSize = 188;
+		    break;
+		}
+		else if ((strm->buffer[i + 192] == SYNC_BYTE) &&
+		         (strm->buffer[i + 384] == SYNC_BYTE))
+		{
+		    //printf("\nfound 3 consecutive SYNCs at 192 byte separation");
+		    strm->tsPktSize = 192;
+		    break;
+		}
+		else if ((strm->buffer[i + 204] == SYNC_BYTE) &&
+		        (strm->buffer[i + 408] == SYNC_BYTE))
+		{
+		    //printf("\nfound 3 consecutive SYNCs at 204 byte separation");
+		    strm->tsPktSize = 204;
+		    break;
+		}
+		else if ((strm->buffer[i + 208] == SYNC_BYTE) &&
+		        (strm->buffer[i + 416] == SYNC_BYTE))
+		{
+		    //printf("\nfound 3 consecutive SYNCs at 208 byte separation");
+		    strm->tsPktSize = 208;
+		    break;
+		}
         }
         else if ((strm->buffer[i+0] == 0) &&
                  (strm->buffer[i+1] == 0) &&
                  (strm->buffer[i+2] == 1))
         {
             int leave = TRUE;
-
             switch (strm->buffer[i+3])
             {
                 case 0xb0:
@@ -673,6 +745,7 @@ discoverPktSize(struct stream* strm)
 
         strm->offset++;
     }
+    giStreamPacketSize = strm->tsPktSize;
 }
 
 #ifdef PSI_TEST_STAND_ALONE

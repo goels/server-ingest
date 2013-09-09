@@ -59,6 +59,50 @@
 #include <glib.h>
 #include <stdio.h>
 #include "IfsIntf.h"
+#include "ifs_streamdefs.h"
+
+// H.264 elementary stream header bit defines
+typedef enum
+{
+    // Start Code events:
+    IfsIndexNalUnitUnspecified = (unsigned) 1 << 16, // Unspecified NAL Unit
+    IfsIndexNalUnitCodedSliceNonIDRPict = (unsigned) 1 << 17, //Coded SLice of a non-IDR Picture
+    IfsIndexNalUnitCodedSliceDataPartA = (unsigned) 1 << 18,
+    IfsIndexNalUnitCodedSliceDataPartB = (unsigned) 1 << 19,
+    IfsIndexNalUnitCodedSliceDataPartitionC = (unsigned) 1 << 20,
+    IfsIndexNalUnitCodedSliceIDRPicture = (unsigned) 1 << 21,
+    IfsIndexNalUnitSEI = (unsigned) 1 << 22,
+    IfsIndexNalUnitSeqParamSet = (unsigned) 1 << 23,
+    IfsIndexNalUnitPictParamSet = (unsigned) 1 << 24,
+    IfsIndexNalUnitAccessUnitDelimiter = (unsigned) 1 << 25,
+    IfsIndexNalUnitEndofSeq = (unsigned) 1 << 26,
+    IfsIndexNalUnitEndofStream = (unsigned) 1 << 27,
+    IfsIndexNalUnitOther = (unsigned) 1 << 28,
+    IfsIndexPictureI = (unsigned) 1 << 29,
+    IfsIndexPictureP = (unsigned) 1 << 30,
+    IfsIndexPictureB = (unsigned) 1 << 31,
+} IfsIndexAVC;
+
+
+typedef enum
+{
+	// H.264 bits mask:
+	IfsHeaderBitMask_h264 =
+		IfsIndexNalUnitUnspecified |
+		IfsIndexNalUnitCodedSliceNonIDRPict |
+		IfsIndexNalUnitCodedSliceDataPartA	|
+		IfsIndexNalUnitCodedSliceDataPartB |
+		IfsIndexNalUnitCodedSliceDataPartitionC |
+		IfsIndexNalUnitCodedSliceIDRPicture |
+		IfsIndexNalUnitSEI |
+		IfsIndexNalUnitSeqParamSet |
+		IfsIndexNalUnitPictParamSet |
+		IfsIndexNalUnitAccessUnitDelimiter |
+		IfsIndexNalUnitEndofSeq|
+		IfsIndexNalUnitEndofStream |
+		IfsIndexNalUnitOther
+} IfsHeaderMask_h264;
+
 
 typedef enum
 {
@@ -70,11 +114,24 @@ typedef enum
 typedef enum
 {
 
-    IfsH264IndexerSettingVerbose =  // index all possible events
-        IfsIndexStartH264Video | IfsIndexStartH264Audio | 0,
+	IfsH264IndexerSettingVerbose =
+    		// Adaptation events:
+    		IfsHeaderBitMask_Adptation  |
+            // Transport header events:
+    		IfsHeaderBitMask_Transport	|
+    		// H.264 bits
+    		IfsHeaderBitMask_h264 |
+            // Extension Events:
+            IfsHeaderBitMask_Extension |
+
+#ifdef DEBUG_ALL_PES_CODES
+            IfsHeaderBitMask_PES |
+#endif
+            0,
 
     IfsH264IndexerSettingDefault =
-        IfsIndexStartH264Video | IfsIndexStartH264Audio | 0,
+            IfsHeaderBitMask_h264 |
+            0,
 
 } IfsH264IndexerSetting;
 
@@ -93,6 +150,17 @@ typedef struct IfsH264CodecImpl
     void (*CountIndexes)(ullong ifsIndex);
     void (*DumpIndexes)(void);
     void (*DumpHandle)(IfsHandle ifsHandle);
+
+    IfsPcr ifsPcr;
+    IfsPts ifsPts;
+    IfsPid videoPid;
+    IfsPid audioPid;
+
+    unsigned char oldEsp;
+    unsigned char oldSc;
+    unsigned char oldTp;
+    unsigned char oldCc;
+    unsigned int last4Bytes;
 
 } IfsH264CodecImpl;
 

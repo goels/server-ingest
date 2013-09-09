@@ -57,5 +57,6 @@
 #include "ifs_impl.h"
 
 IfsBoolean mpeg2ps_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket);
+void extract_SCR(IfsHandle ifsHandle, unsigned char buf[6]);
 
 #endif

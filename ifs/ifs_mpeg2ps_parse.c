@@ -84,3 +84,58 @@ IfsBoolean mpeg2ps_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
     return ifsHandle->entry.what;
 }
 
+// Extract system clock reference from program stream pack header
+void extract_SCR(IfsHandle ifsHandle, unsigned char buf[6])
+{
+    int SCR, SCR1;
+    double scr_val;
+    //double scr_ext;
+
+    /* System Clock reference
+   '01'                                     2 bslbf
+    system_clock_reference_base [32..30]    3 bslbf
+    marker_bit                              1 bslbf
+    system_clock_reference_base [29..15]    15 bslbf
+    marker_bit                              1 bslbf
+    system_clock_reference_base [14..0]     15 bslbf
+    marker_bit                              1 bslbf
+    system_clock_reference_extension        9 uimsbf
+    marker_bit                              1 bslbf
+    */
+    // Check for overflow??
+    SCR = GETBITS(buf[0], 6, 4);
+    SCR = SCR << 30;
+    SCR |= GETBITS(buf[0], 2, 1) << 28;
+    SCR |= GETBITS(buf[1], 8, 1) << 20;
+    SCR |= GETBITS(buf[2], 8, 4) << 15;
+    SCR |= GETBITS(buf[2], 2, 1) << 13;
+    SCR |= GETBITS(buf[3], 8, 1) << 5;
+    SCR |= GETBITS(buf[4], 8, 4);
+    //printf(" SCR: 0x%x\n", SCR);
+    scr_val = (double)SCR;
+
+    scr_val *= 300.0;
+    //printf(" scr_val: %f\n", scr_val);
+
+    SCR1 = 0;
+    SCR1 =  GETBITS(buf[4], 2, 1) << 7;
+    SCR1 |=  GETBITS(buf[5], 8, 2) ;
+    //scr_ext = (double)SCR1;
+    //printf(" scr_ext: %f\n", scr_ext);
+    //printf(" final scr_val: %f\n", ((scr_val + scr_ext)/27000.0));
+    //return (scr_val + scr_ext)/27000.0;
+    //printf(" SCR: %llu scr: %f\n", (SCR*300)+SCR1, ((scr_val + scr_ext)/27000.0));
+    ifsHandle->ifsScr = SCR*300+SCR1;
+    {
+        char temp[256];
+        IfsLongLongToString(ifsHandle->ifsScr/27000000, temp);
+        if (!ifsHandle->begClockPerContainer)
+        {
+            ifsHandle->begClockPerContainer = ifsHandle->ifsScr;
+        }
+
+        //printf("SCR is %s\n",  temp);
+    }
+}
+
+

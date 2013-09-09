@@ -65,8 +65,10 @@
 
 IfsPid mpeg2ts_GetPid(IfsPacket * pIfsPacket)
 {
-    return (((IfsPid)(pIfsPacket->bytes[1] & 0x1F)) << 8)
-            | pIfsPacket->bytes[2];
+	int offset = (giStreamPacketSize == 192) ? 4 : 0;
+
+	return (((IfsPid)(pIfsPacket->bytes[offset+1] & 0x1F)) << 8)
+            | pIfsPacket->bytes[offset+2];
 }
 
 void mpeg2ts_ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
@@ -83,6 +85,7 @@ void mpeg2ts_ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
         what |= (1 << 5);
         ifsHandle->codec->h262->oldEsp = espBit;
     }
+    ifsHandle->codec->h264->oldEsp = ifsHandle->codec->h262->oldEsp;
 
     ifsHandle->entry.what |= what;
 
@@ -103,12 +106,17 @@ void mpeg2ts_ParseAdaptation(IfsHandle ifsHandle, unsigned char bytes[7])
 
         ifsHandle->codec->h262->ifsPcr = (ifsHandle->codec->h262->ifsPcr * 300 + (((((IfsPcr) bytes[5])
                 & 1) << 8) | bytes[6]));
+        ifsHandle->codec->h264->ifsPcr = ifsHandle->codec->h262->ifsPcr;
+        if(!ifsHandle->begClockPerContainer)
+        {
+        	ifsHandle->begClockPerContainer = ifsHandle->codec->h262->ifsPcr;
+        }
     }
 }
 
 IfsBoolean mpeg2ts_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 {
-    if (pIfsPacket->bytes[0] == 0x47)
+    if (pIfsPacket->bytes[0] == 0x47 || pIfsPacket->bytes[4] == 0x47)
     {
         ifsHandle->entry.what = 0;
 

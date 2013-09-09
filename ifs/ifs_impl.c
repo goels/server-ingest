@@ -549,6 +549,11 @@ IfsReturnCode IfsStart(IfsHandle ifsHandle, // Input (must be a writer)
         ifsHandle->codec->h262->videoPid = videoPid;
         ifsHandle->codec->h262->audioPid = audioPid;
     }
+    else if (ifsHandle->codecType == IfsCodecTypeH264)
+    {
+        ifsHandle->codec->h264->videoPid = videoPid;
+        ifsHandle->codec->h264->audioPid = audioPid;
+    }
 
     if (indexDumpMode == IfsIndexDumpModeAll)
     {

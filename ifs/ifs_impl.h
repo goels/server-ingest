@@ -102,6 +102,8 @@ typedef struct IfsIndexEntry
 
 } IfsIndexEntry;
 
+
+
 typedef struct IfsHandleImpl
 {
     // The input parameters
@@ -125,6 +127,8 @@ typedef struct IfsHandleImpl
     IfsClock endClock; // clock at end of recording, in nanoseconds
     IfsClock nxtClock; // clock at next file change, in nanoseconds
 
+    IfsClock begClockPerContainer; // This is the initial PCR
+
     // Indexer settings and state
     IfsIndexEntry entry;
 #ifdef DEBUG_ALL_PES_CODES
@@ -135,6 +139,8 @@ typedef struct IfsHandleImpl
 
     // Transport container-specific handle params
     IfsContainerType containerType;
+    // Transport container specific (MPEG PS)
+    IfsScr ifsScr;
     //IfsContainer* container;
     NumBytes pktSize; // size of the transport packet (188, 192, 204, or 208)
 

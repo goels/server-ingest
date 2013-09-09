@@ -61,7 +61,15 @@
 #define DEBUG_ALL_PES_CODES
 
 #define MAX_TRANSPORT_PACKET_SIZE 208
+
+//#define IFS_TRANSPORT_PACKET_SIZE_192
+
+#ifdef IFS_TRANSPORT_PACKET_SIZE_192
+#define IFS_TRANSPORT_PACKET_SIZE 192
+#else
 #define IFS_TRANSPORT_PACKET_SIZE 188
+#endif
+
 #define IFS_NULL_PID_VALUE        ((IfsPid)0x1FFF)
 #define IFS_UNDEFINED_PID         ((IfsPid)-1)
 #define IFS_UNDEFINED_CLOCK       ((IfsClock)-1)
@@ -81,10 +89,14 @@ typedef unsigned llong NumBytes; // number of bytes
 typedef unsigned long NumEntries; // number of index entries
 typedef unsigned short IfsPid; // PID values
 typedef unsigned llong IfsPcr; // PCR values
+typedef unsigned llong IfsScr; // SCR values
 typedef unsigned llong IfsPts; // PTS values
 
 typedef struct IfsHandleImpl * IfsHandle;
 typedef union IfsCodecImpl IfsCodec;
+
+#define      GETBITS(Source, MSBit, LSBit)   ( \
+            ((((1 << (MSBit - LSBit + 1))-1) << (LSBit -1)) & Source) >>(LSBit -1))
 
 typedef enum
 {
@@ -181,12 +193,13 @@ typedef struct IfsInfo
 
 typedef struct IfsPacket
 {
-    unsigned char bytes[IFS_TRANSPORT_PACKET_SIZE];
+    unsigned char bytes[MAX_TRANSPORT_PACKET_SIZE];
 
 } IfsPacket;
 
 
 extern ullong IfsIndexerSettingDefault;
+extern int giStreamPacketSize;
 
 // Utility operations:
 
@@ -197,6 +210,7 @@ char * IfsToSecs(const IfsClock ifsClock, char * const temp); // temp[] must be 
 char * IfsLongLongToString(ullong value, char * const temp); // temp[] must be at least 27 characters, returns temp
 void IfsDumpInfo(const IfsInfo * const pIfsInfo);
 void IfsDumpHandle(const IfsHandle ifsHandle);
+float IfsConvertToSecs(char * const temp);
 
 IfsReturnCode IfsFreeInfo(IfsInfo * pIfsInfo // Input
         );

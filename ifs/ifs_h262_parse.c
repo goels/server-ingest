@@ -58,14 +58,17 @@
 #include "ifs_h262_impl.h"
 #include "ifs_h262_parse.h"
 #include "ifs_mpeg2ts_parse.h"
+#include "ifs_mpeg2ps_parse.h"
 #include "ifs_utils.h"
 
 extern ullong indexerSetting;
 
+static IfsBoolean isProgramStream = IfsFalse;
 
 static void ParseCode(IfsHandle ifsHandle, const unsigned char code)
 {
-    IfsH262Index what = 0;
+	ullong what = 0;
+	// IfsH262Index what = 0;
 
     //                                     PTS?
     //
@@ -203,6 +206,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
         const unsigned char bytes[])
 {
     unsigned char i;
+    IfsPts ifsPts;
 
     for (i = 0; i < pdeLen; i++)
     {
@@ -262,12 +266,27 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             case 0xB5:
                 ifsHandle->ifsState = IfsStateGotExt0;
                 break;
+            case 0xBA: // PACK_START_CODE
+                isProgramStream = IfsTrue;
+                extract_SCR(ifsHandle, (unsigned char*)&bytes[i+1]);
+            break;
             default:
                 ifsHandle->ifsState
                         = ((bytes[i] & 0xF0) == 0xE0 ? IfsStateGotVid0
                                 : IfsStateInitial);
                 break;
             }
+			if (ifsHandle->ifsState == IfsStateInitial)
+			{
+				char temp[33], temp1[33];//, temp2[256] , temp3[33];
+				IfsLongLongToString(ifsPts, temp);
+				IfsLongLongToString(ifsHandle->begClockPerContainer/300, temp1);
+				//IfsLongLongToString(ifsHandle->begClock, temp3);
+
+				//printf("PTS FOUND %s PCR %s Diff:%lld, begClock: %s -- %s\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000,
+					//	temp3, h262_ParseWhat(ifsHandle, temp2, IfsIndexDumpModeDef, IfsTrue));
+				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
+			}
             break;
 
         case IfsStateGotPic0:
@@ -291,8 +310,27 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // next 00 next 01 next B5 next EX next 1X next 8X   else   where
             // ------- ------- ------- ------- ------- ------- ------- -------
             //                                                 Initial buf[ 5]
+            // Check if the pts is present then pick it up
+            if (ifsHandle->entry.what & IfsIndexInfoContainsPts)
+            {
+	        ifsPts =  ifsHandle->codec->h262->ifsPts;
+            }
+            else
+            {
+                if(!isProgramStream)
+	            ifsPts = ifsHandle->codec->h262->ifsPcr/300;
+                else
+                    ifsPts = ifsHandle->ifsScr/300;
+            }
 
-            ifsHandle->ifsState = IfsStateInitial;
+			{
+				char temp[33], temp1[33];
+				IfsLongLongToString(ifsPts, temp);
+				IfsLongLongToString(ifsHandle->begClockPerContainer/300, temp1);
+				//printf("PTS FOUND %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
+				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
+			}
+			ifsHandle->ifsState = IfsStateInitial;
             break;
 
         case IfsStateGotExt0:
@@ -655,8 +693,18 @@ IfsBoolean h262_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
             ParsePacket(ifsHandle, pIfsPacket->bytes);
         }
     }
-    else  // TODO: this section should parse MPEG PS
+    else if(pIfsPacket->bytes[4] == 0x47) // 192 byte packets
     {
+        ifsHandle->entry.what = 0;
+        //printf("parsing 192-byte MPEG2TS packet\n")
+        if (mpeg2ts_GetPid(pIfsPacket) == ifsHandle->codec->h262->videoPid)
+        {
+            ParsePacket(ifsHandle, (unsigned char*)&pIfsPacket->bytes[4]);
+        }
+    }
+    else  // this section should parse MPEG PS
+    {
+        ifsHandle->entry.what = 0;
         //printf("parsing MPEG2PS packet\n");
         ParseElementary(ifsHandle, ifsHandle->pktSize, pIfsPacket->bytes);
     }
@@ -1354,4 +1402,20 @@ void h262_DumpHandle(const IfsHandle ifsHandle)
     printf("ifsHandle->codec->oldCc     %d\n", ifsHandle->codec->h262->oldCc); // unsigned char
     g_static_mutex_unlock(&(ifsHandle->mutex));
 }
+
+unsigned IfsCheck_SEQ_HDR(IfsHandle ifsHandle, ullong ifsIndex)
+{
+	unsigned i = 0;
+
+	if(ifsHandle->codecType == IfsCodecTypeH262)
+	{
+		if (ifsIndex &  IfsIndexStartSeqHeader)
+			i |= 0x01;
+		if(ifsIndex & IfsIndexHeaderPusiBit)
+			i |= 0x08;
+
+	}
+	return i;
+}
+
 

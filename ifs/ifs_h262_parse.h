@@ -68,4 +68,7 @@ extern void h262_DumpIndexes(void);
 
 extern void h262_DumpHandle(IfsHandle ifsHandle);
 
+unsigned IfsCheck_SEQ_HDR(IfsHandle ifsHandle, ullong index);
+
+
 #endif
