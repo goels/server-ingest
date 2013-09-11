@@ -8,9 +8,9 @@
 //  (1) BSD 2-clause 
 //   Redistribution and use in source and binary forms, with or without modification, are
 //   permitted provided that the following conditions are met:
-//        Â·Redistributions of source code must retain the above copyright notice, this list
+//        ·Redistributions of source code must retain the above copyright notice, this list 
 //             of conditions and the following disclaimer.
-//        Â·Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+//        ·Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
 //             and the following disclaimer in the documentation and/or other materials provided with the 
 //             distribution.
 //   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
@@ -51,6 +51,10 @@
 //       303 661-9100
 // COPYRIGHT_END
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -78,16 +82,80 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo);
 static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo);
 static IfsBoolean getPatPmtPackets(streamInfo *strmInfo, trickInfo *tinfo);
 
-static char tmpFileName[MAX_PATH];
-static char trick_filename[MAX_PATH];
 static int64_t byteOffset = 0;
+
+//-------------------------------------------------------
+
+
+typedef struct stat Stat;
+
+
+static int do_mkdir(const char *path, mode_t mode)
+{
+    Stat            st;
+    int             status = 0;
+
+    if (stat(path, &st) != 0)
+    {
+        /* Directory does not exist. EEXIST for race condition */
+        if (mkdir(path, mode) != 0 && errno != EEXIST)
+            status = -1;
+    }
+    else if (!S_ISDIR(st.st_mode))
+    {
+        errno = ENOTDIR;
+        status = -1;
+    }
+    return(status);
+}
+
+/**
+** mkpath - ensure all directories in path exist
+** Algorithm takes the pessimistic view and works top-down to ensure
+** each directory in path exists, rather than optimistically creating
+** the last element and working backwards.
+*/
+static int mkpath(const char *path, mode_t mode)
+{
+    char           *pp;
+    char           *sp;
+    int             status;
+    char           copypath[MAX_PATH];
+
+
+    strcpy(copypath, path);
+    status = 0;
+    pp = copypath;
+    while (status == 0 && (sp = strchr(pp, '/')) != 0)
+    {
+        if (sp != pp)
+        {
+            /* Neither root nor double slash in path */
+            *sp = '\0';
+            status = do_mkdir(copypath, mode);
+            *sp = '/';
+        }
+        pp = sp + 1;
+    }
+    if (status == 0)
+        status = do_mkdir(path, mode);
+     return (status);
+}
+
+
+//---------------------------------------------------------
+
+
 
 // -----------------------------------------------------
 // trick mode file generation stuff
 // -----------------------------------------------------
 
-IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int trick_speed)
+IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int trick_speed, char *desdir)
 {
+	static char tmpFileName[MAX_PATH];
+	static char trick_filename[MAX_PATH];
+
 	entrySet   trick_entryset;
     refIframeEntry refIframe;
 	trickInfo tinfo = {NULL, IfsFalse, IfsFalse,
@@ -168,13 +236,14 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
         	strstr(strmInfo->stream_filename, ".mpg") ||
         	strstr(strmInfo->stream_filename, ".ts"))
         {
+    		printf("stream file name: %s\n", strmInfo->stream_filename);
            	strcpy(tinfo.ts_filename, strmInfo->stream_filename);
             strcpy(tinfo.trick_filename,  strmInfo->stream_filename);
             strcpy(extn, "ts"); // default extension
-            char * ext = strchr(tinfo.trick_filename, '.');
+            char * ext = strrchr(tinfo.trick_filename, '.');
             if (ext)
             {
-             	strncpy(extn, ext, 6);
+             	strncpy(extn, ext, 5);
              	extn[5] = '\0';
             	*ext = '\0';
             	tinfo.newTrickFile = IfsTrue;
@@ -205,13 +274,44 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
         // Rewind the index file to start processing from the first index entry
         rewind(tinfo.ifsHandle->pNdex);
 
+        char dest[MAX_PATH] = "./";
+
+        if(desdir && (strlen(desdir) > 0))
+        {
+        	int len;
+        	strcpy(dest, desdir);
+        	len = strlen(desdir);
+        	if(desdir[len-1] != '/')
+        	{
+        		dest[len] = '/';
+        		dest[len+1] = '\0';
+        	}
+#if 0
+        	// check to make sure directory exists, otherwise create it
+			struct stat st = {0};
+
+			if (stat(dest, &st) == -1) {
+				mkdir(dest, 0700);
+			}
+#endif
+			mkpath(dest, 0700);
+
+        }
 		// Open input/output files
 		printf("Info: Opening mpeg/ts file: %s for generating trick mode stream...\n", tinfo.ts_filename);
 		tinfo.pFile_ts = fopen(tinfo.ts_filename, "rb");
-		sprintf(trick_filename, "%s.%s%d_1%s", tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
-		printf("Info: Opening trick mode file: %s for generating trick mode stream...\n", tmpFileName);
+
+		if(desdir)
+		{// destination directory specified, get rid of any current directory name attached
+			char *ptr = NULL;
+			strcpy(tmpFileName, tinfo.trick_filename);
+			if((ptr = strrchr(tmpFileName, '/')) != NULL)
+				strcpy(tinfo.trick_filename, (ptr+1));
+		}
+		sprintf(trick_filename, "%s%s.%s%d_1%s", dest, tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
+		printf("Info: Opening trick mode file: %s for generating trick mode stream...\n", trick_filename);
 		tinfo.pFile_tm = fopen(trick_filename, "wb");
-		sprintf(tmpFileName, "%s.%s%d_1%s.index", tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
+		sprintf(tmpFileName, "%s%s.%s%d_1%s.index", dest, tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
 		printf("Info: Opening trick mode index file: %s for generating trick mode indexes...\n", tmpFileName);
 		tinfo.pFile_ndx = fopen(tmpFileName, "w");
 		// check if all files opened correctly

@@ -151,7 +151,7 @@ typedef struct _streamInfo
 
 
 
-IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int trickspeed);
+IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int trickspeed, char * destdir);
 
 
 

@@ -80,7 +80,7 @@ static char* containerName[] = {"ERROR","MPEGPS","MPEGTS","MPEG4"};
 static char* codecName[] = {"ERROR","H.261","H.262","H.263","H.264","H.265"};
 
 static IfsBoolean dumpIndexFile(char *index_filename, unsigned format);
-static IfsBoolean generate_IndexFile(char* inputFile, IfsHandle ifsHandle, streamInfo *strmInfo);
+static IfsBoolean generate_IndexFile(char* inputFile, char *index_filename, IfsHandle ifsHandle, streamInfo *strmInfo);
 
 
 //---------------------------
@@ -215,8 +215,9 @@ static IfsBoolean dumpIndexFile(char *index_filename, unsigned format)
 }
 
 static IfsBoolean
-generate_IndexFile(char *stream_filename, IfsHandle ifsHandle, streamInfo *strmInfo)
+generate_IndexFile(char *stream_filename, char *index_filename, IfsHandle ifsHandle, streamInfo *strmInfo)
 {
+
     FILE * pInFile = NULL;
     NumBytes pktSize = IFS_TRANSPORT_PACKET_SIZE;// TODO: support multiple sizes
     NumPackets numPackets = 0;
@@ -242,7 +243,7 @@ generate_IndexFile(char *stream_filename, IfsHandle ifsHandle, streamInfo *strmI
     // initialize local variables
     pktSize = strmInfo->tsPktSize;
 	//printf("generate_IndexFile pktSize:%d\n", (int)pktSize);
-    if (IfsOpenWriter(".", NULL, 0, &ifsHandle)
+	if (IfsOpenWriter(".", index_filename, 0, &ifsHandle)
 			!= IfsReturnCodeNoErrorReported)
 	{
 		printf("Problems opening ifs writer\n");
@@ -442,6 +443,28 @@ get_streamInfo(char* inputFile, streamInfo *strmInfo)
     return IfsTrue;
 }
 
+
+static void show_usage()
+{
+	printf("Usage1:  indexVideo <input>\n");
+	printf("         Generates the index file\n");
+	printf("         Where: <input> is one of the following three cases:\n");
+	printf("          		1) an MPEG2TS file such as plain.mpg\n");
+	printf("          		2) an MPEG2PS file such as departing_earth.ps\n");
+	printf("          		3) an MPEG4 file such as mp4_video_in_mp2ts.ts\n");
+	printf("Usage2:  indexVideo <index_filename> <format>\n");
+	printf("		 Dumps the binary index file entries in text format\n");
+	printf("         Where: <index_filename> is file name of the index file to be dumped in text format\n");
+	printf("			    <format> is '2' for mpeg-2, '4' for h.264 file format of the index file\n");
+	printf("Usage3:  indexVideo <stream file name> <index_filename> <trick_speed>\n");
+	printf("		 Generates the trick file using the index file name, stream file name, and trick speed\n");
+	printf("         Where: <index_filename> is file name of the index file to be used for generating the trick file\n");
+	printf("			   <stream file name> file name of the associated stream file used with the index file\n");
+	printf("		       <trick_speed> is the number '2 to 200' used for FF speed of the trick file\n");
+	printf("		       <trick_speed> is the number '-2 to -200' used for FR speed of the trick file\n");
+	printf("		       <trick_speed> is the number '1' used for generating 1x speed index text file for the normal stream file\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -456,8 +479,17 @@ main(int argc, char *argv[])
     if ((argc == 2) &&
     		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg")))
     {
+    	printf("Generate index file ..\n");
     	if(get_streamInfo(argv[1], &strmInfo) == IfsTrue)
-    		if(generate_IndexFile(argv[1], handle, &strmInfo) == IfsTrue)
+    		if(generate_IndexFile(argv[1], NULL, handle, &strmInfo) == IfsTrue)
+    			retVal = 1;
+    }
+    else if((argc == 3) &&	// index with specified file name for .ndx file
+    		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg")))
+    {
+    	printf("Generate index file: %s\n", argv[2]);
+    	if(get_streamInfo(argv[1], &strmInfo) == IfsTrue)
+    		if(generate_IndexFile(argv[1], argv[2], handle, &strmInfo) == IfsTrue)
     			retVal = 1;
     }
     else if((argc == 3) &&
@@ -474,30 +506,17 @@ main(int argc, char *argv[])
     	printf("Generate trick play file ...\n");
     	if(get_streamInfo(argv[1], &strmInfo) == IfsTrue)
     	{
+    		char *des_dir = NULL;
     		strmInfo.stream_filename = argv[1];
-    		if(generate_trickfile(argv[2], &strmInfo, atoi(argv[3])) == IfsTrue)
+    		if(argc > 4)
+    			des_dir = argv[4];
+     		if(generate_trickfile(argv[2], &strmInfo, atoi(argv[3]), des_dir) == IfsTrue)
     			retVal = 1;
     	}
     }
     else
     {
-        printf("Usage1:  indexVideo <input>\n");
-        printf("         Generates the index file\n");
-        printf("         Where: <input> is one of the following three cases:\n");
-        printf("          		1) an MPEG2TS file such as plain.mpg\n");
-        printf("          		2) an MPEG2PS file such as departing_earth.ps\n");
-        printf("          		3) an MPEG4 file such as mp4_video_in_mp2ts.ts\n");
-        printf("Usage2:  indexVideo <index_filename> <format>\n");
-        printf("		 Dumps the binary index file entries in text format\n");
-        printf("         Where: <index_filename> is file name of the index file to be dumped in text format\n");
-        printf("			    <format> is '2' for mpeg-2, '4' for h.264 file format of the index file\n");
-        printf("Usage3:  indexVideo <stream file name> <index_filename> <trick_speed>\n");
-        printf("		 Generates the trick file using the index file name, stream file name, and trick speed\n");
-        printf("         Where: <index_filename> is file name of the index file to be used for generating the trick file\n");
-        printf("			   <stream file name> file name of the associated stream file used with the index file\n");
-        printf("		       <trick_speed> is the number '2 to 200' used for FF speed of the trick file\n");
-        printf("		       <trick_speed> is the number '-2 to -200' used for FR speed of the trick file\n");
-        printf("		       <trick_speed> is the number '1' used for generating 1x speed index text file for the normal stream file\n");
+    	show_usage();
     }
     IfsClose(handle);
    	printf("Index Generation %s\n", (retVal == 0) ? "failed" : "successful");
