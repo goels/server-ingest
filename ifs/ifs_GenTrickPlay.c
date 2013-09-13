@@ -8,9 +8,9 @@
 //  (1) BSD 2-clause 
 //   Redistribution and use in source and binary forms, with or without modification, are
 //   permitted provided that the following conditions are met:
-//        ·Redistributions of source code must retain the above copyright notice, this list 
+//        ï¿½Redistributions of source code must retain the above copyright notice, this list 
 //             of conditions and the following disclaimer.
-//        ·Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
+//        ï¿½Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
 //             and the following disclaimer in the documentation and/or other materials provided with the 
 //             distribution.
 //   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
@@ -70,6 +70,7 @@
 #define IFS_TEST_FLAG_SPS	0x01
 #define IFS_TEST_FLAG_PICI	0x04
 #define IFS_TEST_FLAG_PUSI	0x08
+
 
 //
 //
@@ -159,8 +160,8 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 	entrySet   trick_entryset;
     refIframeEntry refIframe;
 	trickInfo tinfo = {NULL, IfsFalse, IfsFalse,
-						0, 2, 1,  2, 0, "", "",
-						NULL, NULL, NULL, NULL,
+						0, 2, 1,  2, 0, 0, "", "",
+						NULL, NULL, NULL, NULL, NULL,
 						&trick_entryset, &refIframe};
 
 
@@ -314,6 +315,9 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 		sprintf(tmpFileName, "%s%s.%s%d_1%s.index", dest, tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
 		printf("Info: Opening trick mode index file: %s for generating trick mode indexes...\n", tmpFileName);
 		tinfo.pFile_ndx = fopen(tmpFileName, "w");
+		sprintf(tmpFileName, "%s%s.%s%d_1.info", dest, "trick", ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed);
+		printf("Info: Opening trick info file: %s \n", tmpFileName);
+		tinfo.pFile_info = fopen(tmpFileName, "w");
 		// check if all files opened correctly
 		if(!tinfo.pFile_ts | !tinfo.pFile_tm | !tinfo.pFile_ndx || !tinfo.ifsHandle->pNdex)
 		{
@@ -321,6 +325,8 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 			if( tinfo.pFile_ts) fclose(tinfo.pFile_ts);
 			if( tinfo.pFile_tm) fclose(tinfo.pFile_tm);
 			if( tinfo.pFile_ndx) fclose(tinfo.pFile_ndx);
+			if( tinfo.pFile_info) fclose(tinfo.pFile_info);
+
 			if (tinfo.ifsHandle->pNdex) fclose(tinfo.ifsHandle->pNdex);
 			if(tinfo.ifsHandle)
 				g_free(tinfo.ifsHandle);
@@ -341,11 +347,18 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
     	return IfsFalse;
     }
 
+    if(tinfo.pFile_info)
+    {
+		printf("framerate=%d\n", tinfo.framerate );
+		fprintf(tinfo.pFile_info, "framerate=%d\n", tinfo.framerate);
+
+    }
     if(tinfo.newTrickFile == IfsTrue)
 	{
 		if( tinfo.pFile_ts) fclose(tinfo.pFile_ts);
 		if( tinfo.pFile_tm) fclose(tinfo.pFile_tm);
 		if( tinfo.pFile_ndx) fclose(tinfo.pFile_ndx);
+		if( tinfo.pFile_info) fclose(tinfo.pFile_info);
 		if(trick_speed == 1)
 			remove(trick_filename);
 ;		printf("\nInfo: Successfully generated the trick play file.\n");
@@ -502,7 +515,8 @@ static IfsBoolean get_indexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
 			break;
 		case IfsCodecTypeH262: // H.262
 			// first get the AUD or SPS entry
-			if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H262_SEQ | IFS_FLAG_H262_GOP)) )
+			//if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H262_SEQ | IFS_FLAG_H262_GOP)) )
+			if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_SEQ) )
 			{
 				// check for SEQ
 				if(entry.what & IFS_FLAG_H262_SEQ)
@@ -755,9 +769,8 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 	char temp2[32]; // IfsToSecs onl
 	float secs = 0,  factor = 0, count = 0;
 	long repeat_count = 0;
-	static long total_frame_count = 0;
 
-	if (total_frame_count == 0 )
+	if (tinfo->total_frame_count == 0 )
 	{
 		printf("Info: First frame\n");
 		repeat_count = 1;			// always copy the first frame
@@ -772,9 +785,15 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 		tinfo->refIframe->timeToNextI =  (tinfo->ifsHandle->entry.when - tinfo->refIframe->entry.when);
 
 		secs = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->timeToNextI, temp1));
-		factor = (tinfo->refIframe->speed < MAX_FRAMES_PER_SEC_LIMIT) ? 0.5 :
-														(tinfo->refIframe->speed/MAX_FRAMES_PER_SEC_LIMIT);
 
+    	factor = (tinfo->refIframe->speed*NUMBER_OF_IFRAMES_SEC <= MAX_FRAMES_PER_SEC_LIMIT) ? 1/NUMBER_OF_IFRAMES_SEC :
+														((tinfo->refIframe->speed*NUMBER_OF_IFRAMES_SEC)/MAX_FRAMES_PER_SEC_LIMIT)*(1/NUMBER_OF_IFRAMES_SEC);
+    	if(tinfo->framerate == 0)
+    	{
+    		tinfo->framerate = (int) (tinfo->refIframe->speed*NUMBER_OF_IFRAMES_SEC <= MAX_FRAMES_PER_SEC_LIMIT) ?
+    												(tinfo->refIframe->speed*NUMBER_OF_IFRAMES_SEC) :
+    												MAX_FRAMES_PER_SEC_LIMIT;
+    	}
 		if(tinfo->trick_direction == -1)
 			secs = tinfo->trick_direction * secs;
 
@@ -782,6 +801,7 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 		{
 			tinfo->ifsHandle->entry.when = tinfo->refIframe->entry.when;
 			printf("Info: factor is greater than secs, skip this frame\n");
+			repeat_count = 0;
 		}
 		else
 		{
@@ -847,15 +867,15 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 					pktCount = tinfo->refIframe->pktCount;
 
 				IfsCopyPackets(tinfo->pFile_ts, tinfo->pFile_tm, pktCount, tinfo->ifsHandle->pktSize);
-				total_frame_count++;
+				tinfo->total_frame_count++;
 				// write to index file
 				if(tinfo->pFile_ndx)
 				{
 					float secx = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->entry.when, temp1));
 #ifdef DEBUG_TEST
-					fprintf(tinfo->pFile_ndx, "V_%04ld	I_%04ld	%06.2f	-	%011.3f %019ld %010d %14c\n", total_frame_count,
+					fprintf(tinfo->pFile_ndx, "V_%04ld	I_%04ld	%06.2f	-	%011.3f %019ld %010d %14c\n", tinfo->total_frame_count,
 							tinfo->refIframe->uIframeNum,
-							(factor * (total_frame_count-1)),
+							(factor * (tinfo->total_frame_count-1)),
 							secx, tinfo->refIframe->entry.realWhere * ifsHandle->pktSize,
 							tinfo->refIframe->pktCount* ifsHandle->pktSize, ' ');
 #else	// this is to be used for generating the ndx file

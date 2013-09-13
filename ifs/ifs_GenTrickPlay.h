@@ -60,8 +60,9 @@
 
 #define round(x) ((x)>=0?(long)((x)+0.5):(long)((x)-0.5))
 
-#define MAX_I_FRAMES_PER_SEC		2
 #define MAX_FRAMES_PER_SEC_LIMIT	8
+#define NUMBER_OF_IFRAMES_SEC 		2.0
+
 
 //#define DEBUG_TEST	1
 #define IFS_FLAG_H264_AUD		IfsIndexNalUnitAccessUnitDelimiter
@@ -120,9 +121,10 @@ typedef struct _trickInfo
 	int		 trick_direction;
     IfsCodecType codecType;
 	long total_frame_count;
+	int  framerate;
 	char ts_filename[MAX_PATH];
 	char trick_filename[MAX_PATH];
-	FILE *pFile_ts, *pFile_tm, *pFile_ndx;
+	FILE *pFile_ts, *pFile_tm, *pFile_ndx, *pFile_info;
 	char* (*parseWhat)(IfsHandle ifsHandle, char * temp,
 						const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
 	entrySet   *trick_entryset;

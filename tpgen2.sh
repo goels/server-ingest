@@ -50,7 +50,7 @@ function tpgen()
 {	#this function is called with two arguments
 tp_speed=$2
 echo " " 
-echo "Generating files for speed: $tp_speed,  file type: $1"
+echo "Generating files for speed: $tp_speed, file type: $1"
 dir=''
 for FILE in $src_dir/*.$1
 	do
@@ -101,9 +101,35 @@ for FILE in $src_dir/*.$1
 function tpgen_all()
 {
 # process all .ts and .mpg files for specified speeds
+
 for arg in "${arglist[@]:1}"; do
-	tpgen mpg $arg
-	tpgen ts $arg
+
+	mpg_count=0
+	ts_count=0
+	echo " "
+	for file in ${src_dir}/*.mpg
+	do
+		if [ -f "${file}" ]; then
+			mpg_count=$((mpg_count+1))
+		fi	
+	done
+	
+	for file in ${src_dir}/*.ts
+	do
+		if [ -f "${file}" ]; then
+			ts_count=$((ts_count+1))
+		fi	
+	done
+	
+	if [ "$mpg_count" -gt 0 ] ; then 
+		echo "processing $mpg_count .mpg files"
+		tpgen mpg $arg
+	fi
+	
+	if [ "$ts_count" -gt 0 ] ; then 
+		echo "processing $mpg_count .ts files"
+		tpgen ts $arg
+	fi
 done
 }
 
