@@ -309,6 +309,10 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 			if((ptr = strrchr(tmpFileName, '/')) != NULL)
 				strcpy(tinfo.trick_filename, (ptr+1));
 		}
+		else
+		{
+		    strcpy(dest, "");
+		}
 		sprintf(trick_filename, "%s%s.%s%d_1%s", dest, tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
 		printf("Info: Opening trick mode file: %s for generating trick mode stream...\n", trick_filename);
 		tinfo.pFile_tm = fopen(trick_filename, "wb");
@@ -828,7 +832,6 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 	if((tinfo->pFile_ts != NULL) && (tinfo->pFile_tm != NULL))
 	{
 		IfsBoolean addPatPmt = IfsTrue;
-		int64_t patBytes=0, pmtBytes=0;
 
 		if(tinfo->patPackets && tinfo->pmtPackets && (addPatPmt == IfsTrue))
 		{ // copy pat/ pmt packets
@@ -839,7 +842,6 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 			else
 			{
 				printf("Debug: Copied %d Pat bytes\n", tinfo->patByteCount);
-				patBytes = tinfo->patByteCount;
 			}
 
 			x = fwrite(tinfo->pmtPackets, 1, tinfo->pmtByteCount, tinfo->pFile_tm);	// write packet to trick file
@@ -848,7 +850,6 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 			else
 			{
 				printf("Debug: Copied %d Pmt bytes\n", tinfo->pmtByteCount);
-				pmtBytes = tinfo->pmtByteCount;
 			}
 		}
 
@@ -867,6 +868,8 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 					pktCount = tinfo->refIframe->pktCount;
 
 				IfsCopyPackets(tinfo->pFile_ts, tinfo->pFile_tm, pktCount, tinfo->ifsHandle->pktSize);
+                printf("Copied %lu packets of size: %lu \n",
+                        (unsigned long)pktCount, (unsigned long)tinfo->ifsHandle->pktSize);
 				tinfo->total_frame_count++;
 				// write to index file
 				if(tinfo->pFile_ndx)
@@ -884,12 +887,22 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 #endif
 				}
                 // calculate byte offset
-                byteOffset += (pktCount * tinfo->ifsHandle->pktSize) ;
+                if(tinfo->refIframe->speed == 1)
+                {
+                    // For normal play index file the byte offsets are relative to the
+                    // original media file
+                    byteOffset = (tinfo->ifsHandle->entry.realWhere * tinfo->ifsHandle->pktSize);
+                }
+                else
+                {
+                    // For trick files we are only copying the I-frames and the byte offsets
+                    // should be relative to the newly generated trick file
+                    byteOffset += (tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize);
+                }
 			}
             // Done copying all the packets, add pat/pmt byte count to the total byteOffset
             {
-                byteOffset += patBytes + pmtBytes;;
-                printf("byteOffset: %12lld\n", byteOffset);
+                byteOffset += (tinfo->patByteCount + tinfo->pmtByteCount);
             }
 		}
 	}
