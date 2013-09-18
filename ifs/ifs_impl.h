@@ -95,6 +95,7 @@ typedef struct IfsIndexEntry
     ullong what;
     NumPackets realWhere;
     NumPackets virtWhere;
+    IfsBoolean pts;
 
 #ifndef DEBUG_ALL_PES_CODES
     unsigned long pad;

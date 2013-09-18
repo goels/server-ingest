@@ -108,6 +108,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
 {
     NumPackets i;
 
+    ifsHandle->entry.pts = IfsFalse;
     if (ifsHandle == NULL)
     {
         RILOG_ERROR(

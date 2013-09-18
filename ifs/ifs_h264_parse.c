@@ -339,6 +339,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 {
     unsigned char i;
     IfsPts ifsPts;
+	static IfsPts last_pts = 0;
 
     for (i = 0; i < pdeLen; i++)
     {
@@ -514,6 +515,10 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 			{
 				ifsPts =  ifsHandle->codec->h264->ifsPts;
 			}
+	         else if (last_pts)
+	            {
+	            	ifsPts = (last_pts + (.033 * 90000));
+	            }
 			else
 			{
 				ifsPts = ifsHandle->codec->h264->ifsPcr/300;
@@ -526,6 +531,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 				//printf("PTS FOUND %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
 				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
 			}
+			last_pts = ifsPts;
 			ifsHandle->ifsState = IfsStateInitial;
             break;
 

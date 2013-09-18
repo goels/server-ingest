@@ -207,6 +207,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 {
     unsigned char i;
     IfsPts ifsPts;
+	static IfsPts last_pts = 0;
 
     for (i = 0; i < pdeLen; i++)
     {
@@ -315,6 +316,10 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             {
 	        ifsPts =  ifsHandle->codec->h262->ifsPts;
             }
+            else if (last_pts)
+            {
+            	ifsPts = (last_pts + (0.033 * 90000));
+            }
             else
             {
                 if(!isProgramStream)
@@ -330,6 +335,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 				//printf("PTS FOUND %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
 				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
 			}
+			last_pts = ifsPts;
 			ifsHandle->ifsState = IfsStateInitial;
             break;
 
@@ -491,6 +497,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 #ifdef DEBUG_ALL_PES_CODES
             ifsHandle->extWhat |= ( bytes[i] & 0x80 ? IfsIndexInfoContainsPts : 0 );
             ifsHandle->entry.what |= ifsHandle->extWhat;
+            ifsHandle->entry.pts = IfsTrue;
 #endif
 
             ifsHandle->ifsState = bytes[i] & 0x80 ? IfsStateGotVid4
@@ -747,6 +754,8 @@ char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
 
     temp[0] = 0;
 
+    if(ifsHandle->entry.pts)
+    	strcat(temp, " pts ");
     if (ifsIndexDumpMode == IfsIndexDumpModeAll)
     {
         if (ifsIndex & IfsIndexHeaderBadSync)
