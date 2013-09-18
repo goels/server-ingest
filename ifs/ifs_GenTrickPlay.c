@@ -438,8 +438,8 @@ static IfsBoolean get_indexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
 	// clear the entries
 	iEntrySet->entry_AUD = entry;
 	iEntrySet->entry_SPS = entry;
-	iEntrySet->entry_IframeB = entry;
-	iEntrySet->entry_IframeE = entry;
+    iEntrySet->entry_IframeB =  iEntrySet->entry_IframeE;
+    iEntrySet->entry_IframeE = entry;
 
 
 
@@ -660,12 +660,27 @@ static IfsBoolean handle_ForwardTrickFileIndexing(trickInfo *tinfo)
 	{
 		do
 		{
-			if(get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet))
+		    IfsBoolean ret = get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
+			if(ret == IfsTrue)
 			{
 				thisSet.valid = IfsTrue;
 				IfsCopyEntrySetData(tinfo);
 				thisSet.valid = IfsFalse;
 			}
+			else if(ret == IfsFalse &&
+                 tinfo->trick_entryset->entry_IframeB.realWhere
+                 && tinfo->trick_speed == 1)
+            {
+	            //printf("get_indexEntrySet returned: %d tinfo->trick_entryset->entry_IframeB.realWhere: %d\n", ret, tinfo->trick_entryset->entry_IframeB.realWhere);
+
+	            // If generating index file for normal speed make sure
+	            // the last I-frame index entry gets copied
+                printf("Copying last I frame..\n");
+                thisSet.valid = IfsTrue;
+                IfsCopyEntrySetData(tinfo);
+                thisSet.valid = IfsFalse;
+            }
+
 			entrySetCount++;
 		}	while(!feof(tinfo->ifsHandle->pNdex));
 	}
