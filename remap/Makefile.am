@@ -6,9 +6,10 @@ libremap_ladir = $(includedir)/remap
 
 libremap_la_CPPFLAGS = \
 	-I../ifs \
-	-I/usr/include \
-	-I/usr/include/glib-2.0 \
-	-I/usr/lib/$(hardware_platform)/glib-2.0/include \
+	-I/$(CVP2_ROOT)/include \
+	-I/$(CVP2_ROOT)/include/glib-2.0 \
+        -I/$(CVP2_ROOT)/lib/glib-2.0/include \
+	-I/$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS) 
