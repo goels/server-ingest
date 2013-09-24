@@ -10,10 +10,10 @@ bin_PROGRAMS = NdxDump IfsSim indexVideo
 libifs_ladir = $(includedir)/ifs
 
 libifs_la_CPPFLAGS = \
-	-I/$(CVP2_ROOT)/include \
-	-I/$(CVP2_ROOT)/include/glib-2.0 \
-        -I/$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I/$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
+	-I$(CVP2_ROOT)/include \
+	-I$(CVP2_ROOT)/include/glib-2.0 \
+        -I$(CVP2_ROOT)/lib/glib-2.0/include \
+	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS) 
@@ -50,10 +50,10 @@ libifs_la_LIBADD = \
 
 NdxDump_CPPFLAGS = \
 	-I../remap \
-	-I/$(CVP2_ROOT)/include \
-	-I/$(CVP2_ROOT)/include/glib-2.0 \
-        -I/$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I/$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
+	-I$(CVP2_ROOT)/include \
+	-I$(CVP2_ROOT)/include/glib-2.0 \
+        -I$(CVP2_ROOT)/lib/glib-2.0/include \
+	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS)
@@ -98,10 +98,10 @@ IfsSim_LDADD = \
 
 IfsSim_CPPFLAGS = \
 	-I../remap \
-	-I/$(CVP2_ROOT)/include \
-	-I/$(CVP2_ROOT)/include/glib-2.0 \
-        -I/$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I/$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
+	-I$(CVP2_ROOT)/include \
+	-I$(CVP2_ROOT)/include/glib-2.0 \
+        -I$(CVP2_ROOT)/lib/glib-2.0/include \
+	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS)
@@ -139,10 +139,10 @@ indexVideo_LDADD = \
 	../ifs/libifs.la
 
 indexVideo_CPPFLAGS = \
-	-I/$(CVP2_ROOT)/include \
-	-I/$(CVP2_ROOT)/include/glib-2.0 \
-        -I/$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I/$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
+	-I$(CVP2_ROOT)/include \
+	-I$(CVP2_ROOT)/include/glib-2.0 \
+        -I$(CVP2_ROOT)/lib/glib-2.0/include \
+	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS)
