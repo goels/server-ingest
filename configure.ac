@@ -17,6 +17,7 @@ AM_INIT_AUTOMAKE
 AM_PROG_CC_C_O
 
 # Checks for libraries.
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.28])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])

@@ -1,4 +1,6 @@
-AM_CFLAGS = -g -O0
+AM_CFLAGS = -g -O0 \
+            $(GLIB_CFLAGS) \
+            -include config.h
 AM_CPPFLAGS = -Wall -Werror
 ACLOCAL_AMFLAGS = -I m4
 
@@ -10,10 +12,6 @@ bin_PROGRAMS = NdxDump IfsSim indexVideo
 libifs_ladir = $(includedir)/ifs
 
 libifs_la_CPPFLAGS = \
-	-I$(CVP2_ROOT)/include \
-	-I$(CVP2_ROOT)/include/glib-2.0 \
-        -I$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS) 
@@ -46,20 +44,15 @@ libifs_la_SOURCES =	\
 	ifs_streamdefs.h 
 
 libifs_la_LIBADD = \
-	-lglib-2.0 
+                $(GLIB_LIBS)
 
 NdxDump_CPPFLAGS = \
 	-I../remap \
-	-I$(CVP2_ROOT)/include \
-	-I$(CVP2_ROOT)/include/glib-2.0 \
-        -I$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS)
 
 NdxDump_LDADD = \
-	-lglib-2.0 \
 	../remap/libremap.la
 
 NdxDump_SOURCES =	\
@@ -93,15 +86,10 @@ NdxDump_SOURCES =	\
 	ifs_streamdefs.h 
 
 IfsSim_LDADD = \
-	-lglib-2.0 \
 	../remap/libremap.la
 
 IfsSim_CPPFLAGS = \
 	-I../remap \
-	-I$(CVP2_ROOT)/include \
-	-I$(CVP2_ROOT)/include/glib-2.0 \
-        -I$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS)
@@ -135,14 +123,9 @@ IfsSim_SOURCES = \
 	ifs_streamdefs.h 
 
 indexVideo_LDADD = \
-	-lglib-2.0 \
 	../ifs/libifs.la
 
 indexVideo_CPPFLAGS = \
-	-I$(CVP2_ROOT)/include \
-	-I$(CVP2_ROOT)/include/glib-2.0 \
-        -I$(CVP2_ROOT)/lib/glib-2.0/include \
-	-I$(CVP2_ROOT)/lib/$(hardware_platform)/glib-2.0/include \
 	-I./ \
 	-DSTAND_ALONE \
 	$(CPPFLAGS)
