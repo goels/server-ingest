@@ -80,9 +80,10 @@ function add_item_info()
 
 function add_file_resource_info()	#input required is the path, file name, source file name
 {
-	fullname=$3
-	fname=$(basename $fullname)
-	echo "basename=${fname%.*}" > $1/$2
+	#fullname=$3
+	#fname=$(basename $fullname)
+	#echo "basename=${fname%.*}" > $1/$2
+	echo "basename=$3" > $1/$2
 	echo "profile=$profile" >> $1/$2
 	echo "mime-type=$mime_type" >> $1/$2
 	echo "protected=false" >> $1/$2
@@ -132,9 +133,12 @@ dir=''
 for FILE in $src_dir/*.$1
 	do
 		((file_count++))
-		full_filename=$(basename $FILE)
+		tmp=${FILE// /_}
+		full_filename=$(basename $tmp)
 		base_filename="${full_filename%.*}"
 		extension="${full_filename##*.}"
+		base_filename=${base_filename//./_} 
+		full_filename=${full_filename//./_} 
 		echo "-----------------------------"
 		echo "File_$file_count: $FILE"
 		echo "-----------------------------"
@@ -153,7 +157,7 @@ for FILE in $src_dir/*.$1
 			echo "Creating media directory: $media_dir"
 		fi
 		if [ "$profile_found" = "yes" ]; then 
-			ref_name=$profile.$base_filename
+			ref_name="$profile"_"$base_filename"
 			item_ref_file=$ref_dir/$ref_name.item
 		else
 			ref_name=$full_filename.item
@@ -203,7 +207,7 @@ for FILE in $src_dir/*.$1
 		#
 		# generate resource.info file
 		#
-		add_file_resource_info $final_dest "resource.info" $FILE
+		add_file_resource_info $final_dest "resource.info" $base_filename
 		#
 		# check for mp4, no indexing done for mp4 files
 		#
@@ -215,11 +219,23 @@ for FILE in $src_dir/*.$1
 			cp -f $FILE $final_dest/$base_filename.1_1.$extension
 		else
 			echo "Indexing file:" $FILE
-			$app_dir/$app $FILE ndx >> tpgenlog.txt
-			$app_dir/$app $FILE ndx/0000000000.ndx $tp_speed $final_dest >> tpgenlog.txt
+			cp -f $FILE $final_dest/$base_filename.$extension
+			NEW_FILE="$final_dest/$base_filename.$extension"
+			$app_dir/$app $NEW_FILE ndx >> tpgenlog.txt
+			$app_dir/$app $NEW_FILE ndx/0000000000.ndx $tp_speed $final_dest >> tpgenlog.txt
 			if [ "$tp_speed" = "1" ] ; then
-				cp -f $FILE $final_dest/$base_filename.1_1.$extension
+				mv $NEW_FILE $final_dest/$base_filename.1_1.$extension
+			else
+				rm -f $NEW_FILE
 			fi
+			#
+			#following commented out code uses the original file name for indexing
+			#$app_dir/$app $FILE ndx >> tpgenlog.txt
+			#$app_dir/$app $FILE ndx/0000000000.ndx $tp_speed $final_dest >> tpgenlog.txt
+			#if [ "$tp_speed" = "1" ] ; then
+			#	cp -f $FILE $final_dest/$base_filename.1_1.$extension
+			#fi
+			#
 		fi
 		echo "-----------------------------------------"
 		echo " " >> tpgenlog.txt
@@ -229,55 +245,30 @@ for FILE in $src_dir/*.$1
 	done
 }
 
+
+
+
 function tpgen_all()
 {
-# process all .ts and .mpg files for specified speeds
-
+# process stream files for specified speeds
 for arg in "${arglist[@]:$1}"; do
-
-	mpg_count=0
-	ts_count=0
-	mp4_count=0
-	for file in ${src_dir}/*.mpg
-	do
-		if [ -f "${file}" ]; then
-			mpg_count=$((mpg_count+1))
-		fi	
+	ext_list=(ts mpg mp4 TS MPG MP4)
+	for extn in ${ext_list[@]}; do	
+		count=0
+		for file in ${src_dir}/*.$extn; do
+			if [ -f "${file}" ]; then
+				count=$((count+1))
+			fi	
+		done
+		if [ "$count" -gt 0 ] ; then 
+			tpgen $extn $arg
+		fi
 	done
-	
-	for file in ${src_dir}/*.ts
-	do
-		if [ -f "${file}" ]; then
-			ts_count=$((ts_count+1))
-		fi	
-	done
-	
-	for file in ${src_dir}/*.mp4
-	do
-		if [ -f "${file}" ]; then
-			mp4_count=$((mp4_count+1))
-		fi	
-	done
-	
-	if [ "$mpg_count" -gt 0 ] ; then 
-		#echo "processing $mpg_count .mpg files"
-		tpgen mpg $arg
-	fi
-	
-	if [ "$ts_count" -gt 0 ] ; then 
-		#echo "processing $ts_count .ts files"
-		tpgen ts $arg
-	fi
-	
-	if [ "$mp4_count" -gt 0 ] ; then 
-		#echo "processing $ts_count .mp4 files"
-		tpgen mp4 $arg
-	fi
 done
 }
 
 
-process_profiles()
+function process_profiles()
 {
 _dir=$1
 for dir in $_dir/*/
@@ -334,12 +325,12 @@ if [ -n "$1" ] && [ -n "$2" ]; then
 	if [[ -d "$2" ]]; then 
 		cd "$2"
 		media_dir="$PWD/media"
-		ref_dir="$PWD/items-ref"
+		ref_dir="$PWD/item-refs"
 	else
 		mkdir "$2"
 		cd "$2"
 		media_dir="$PWD/media"
-		ref_dir="$PWD/items-ref"
+		ref_dir="$PWD/item-refs"
 	fi
 	cd $main_dir
 	echo "-------------------------------------------"
