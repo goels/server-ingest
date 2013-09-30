@@ -1,7 +1,6 @@
 hardware_platform = i386-linux-gnu
 
-AM_CFLAGS = $(GLIB_CFLAGS) \
-            -include config.h
+AM_CFLAGS = $(GLIB_CFLAGS) 
 
 lib_LTLIBRARIES = libremap.la
 

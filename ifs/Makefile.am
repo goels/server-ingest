@@ -1,6 +1,5 @@
 AM_CFLAGS = -g -O0 \
-            $(GLIB_CFLAGS) \
-            -include config.h
+            $(GLIB_CFLAGS) 
 AM_CPPFLAGS = -Wall -Werror
 ACLOCAL_AMFLAGS = -I m4
 
