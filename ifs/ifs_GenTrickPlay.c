@@ -319,7 +319,7 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 		sprintf(tmpFileName, "%s%s.%s%d_1%s.index", dest, tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
 		printf("Info: Opening trick mode index file: %s for generating trick mode indexes...\n", tmpFileName);
 		tinfo.pFile_ndx = fopen(tmpFileName, "w");
-		sprintf(tmpFileName, "%s%s.%s%d_1.info", dest, "trick", ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed);
+		sprintf(tmpFileName, "%s%s.%s%d_1%s.info", dest, tinfo.trick_filename, ((trick_speed < 0) ? "-" : ""), tinfo.trick_speed, extn);
 		printf("Info: Opening trick info file: %s \n", tmpFileName);
 		tinfo.pFile_info = fopen(tmpFileName, "w");
 		// check if all files opened correctly
