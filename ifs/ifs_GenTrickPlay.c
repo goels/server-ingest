@@ -81,9 +81,8 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo);
 static IfsBoolean IfsCopyPackets(FILE *infile_ts, FILE *outfile_tm, unsigned long pktCount, unsigned pktSize);
 static IfsBoolean IfsCopyFrameData(trickInfo *tinfo);
 static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo);
+static IfsBoolean IfsCopyIndexData(trickInfo *tinfo);
 static IfsBoolean getPatPmtPackets(streamInfo *strmInfo, trickInfo *tinfo);
-
-static int64_t byteOffset = 0;
 
 //-------------------------------------------------------
 
@@ -142,10 +141,6 @@ static int mkpath(const char *path, mode_t mode)
         status = do_mkdir(path, mode);
      return (status);
 }
-
-
-//---------------------------------------------------------
-
 
 
 // -----------------------------------------------------
@@ -514,7 +509,7 @@ static IfsBoolean get_indexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
 			}
 			else // did not get the entry
 			{
-				printf("Error: AUD or SPS not found\n");
+				printf("Error: AUD or SPS not found, possible end of file\n");
 			}
 			break;
 		case IfsCodecTypeH262: // H.262
@@ -667,28 +662,42 @@ static IfsBoolean handle_ForwardTrickFileIndexing(trickInfo *tinfo)
 				IfsCopyEntrySetData(tinfo);
 				thisSet.valid = IfsFalse;
 			}
-			else if(ret == IfsFalse &&
-                 tinfo->trick_entryset->entry_IframeB.realWhere
-                 && tinfo->trick_speed == 1)
-            {
-	            //printf("get_indexEntrySet returned: %d tinfo->trick_entryset->entry_IframeB.realWhere: %d\n", ret, tinfo->trick_entryset->entry_IframeB.realWhere);
-
-	            // If generating index file for normal speed make sure
-	            // the last I-frame index entry gets copied
-                printf("Copying last I frame..\n");
-                thisSet.valid = IfsTrue;
-                IfsCopyEntrySetData(tinfo);
-                thisSet.valid = IfsFalse;
-            }
-
 			entrySetCount++;
 		}	while(!feof(tinfo->ifsHandle->pNdex));
+		// copy the last entry
+		thisSet.valid = IfsTrue;
+		IfsCopyEntrySetData(tinfo);
 	}
 	// read entry set from Index file
 
 	printf("Info: Total entrySet Count: %d\n", entrySetCount);
 	return IfsTrue;
 }
+
+
+static IfsBoolean IfsCopyIndexData(trickInfo *tinfo)
+{
+	IfsBoolean retVal = IfsFalse;
+
+	if(tinfo->pFile_ndx)
+	{
+		char temp1[32];
+
+		// For normal play index file the byte offsets are relative to the
+		// original media file
+       if(tinfo->refIframe->speed == 1)
+     	   tinfo->byteOffset = (tinfo->ifsHandle->entry.realWhere * tinfo->ifsHandle->pktSize);
+       //-------------------
+
+ 		float secx = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->entry.when, temp1));
+		fprintf(tinfo->pFile_ndx, "V I %011.3f %019lld %010lld %14c\n", secx,
+				tinfo->byteOffset,	tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize, ' ');
+		retVal = IfsTrue;
+	}
+	return retVal;
+}
+
+
 
 static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo)
 {
@@ -710,7 +719,10 @@ static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo)
 		}
 		else
 		{
-			IfsCopyFrameData(tinfo);
+			if(tinfo->trick_speed == 1) // for normal speed, just copy the index data only
+				IfsCopyIndexData(tinfo);
+			else
+				IfsCopyFrameData(tinfo);
 		}
 		// save this I frame as new Reference frame
 		tinfo->refIframe->entry = tinfo->ifsHandle->entry;
@@ -730,12 +742,10 @@ static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo)
 		printf("Info: refIFrame->realWhere: %06ld\n",
 				tinfo->refIframe->entry.realWhere);
 		printf("==============================\n");
-
-		//if(tinfo->uIframeNum == 1)	// first frame's time stamp
-		//tinfo->refIframe->entry.when = 0;
 	}
 	return IfsTrue; // check the return value in this function
 }
+
 
 static IfsBoolean IfsCopyPackets(FILE *infile_ts, FILE *outfile_tm, unsigned long pktCount, unsigned pktSize)
 {
@@ -795,9 +805,6 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 		repeat_count = 1;			// always copy the first frame
 	}
 
-	if(tinfo->refIframe->speed == 1)
-		repeat_count =1;
-	else
 	if(tinfo->refIframe->speed > 1)
 	{
 
@@ -886,39 +893,16 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
                 printf("Copied %lu packets of size: %lu \n",
                         (unsigned long)pktCount, (unsigned long)tinfo->ifsHandle->pktSize);
 				tinfo->total_frame_count++;
-				// write to index file
-				if(tinfo->pFile_ndx)
-				{
-					float secx = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->entry.when, temp1));
-#ifdef DEBUG_TEST
-					fprintf(tinfo->pFile_ndx, "V_%04ld	I_%04ld	%06.2f	-	%011.3f %019ld %010d %14c\n", tinfo->total_frame_count,
-							tinfo->refIframe->uIframeNum,
-							(factor * (tinfo->total_frame_count-1)),
-							secx, tinfo->refIframe->entry.realWhere * ifsHandle->pktSize,
-							tinfo->refIframe->pktCount* ifsHandle->pktSize, ' ');
-#else	// this is to be used for generating the ndx file
-					fprintf(tinfo->pFile_ndx, "V I %011.3f %019lld %010lld %14c\n", secx,
-							byteOffset, tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize, ' ');
-#endif
-				}
-                // calculate byte offset
-                if(tinfo->refIframe->speed == 1)
-                {
-                    // For normal play index file the byte offsets are relative to the
-                    // original media file
-                    byteOffset = (tinfo->ifsHandle->entry.realWhere * tinfo->ifsHandle->pktSize);
-                }
-                else
-                {
-                    // For trick files we are only copying the I-frames and the byte offsets
-                    // should be relative to the newly generated trick file
-                    byteOffset += (tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize);
-                }
+				//----------------------
+				IfsCopyIndexData(tinfo);
+				//----------------------
+				//
+                // For trick files we are only copying the I-frames and the byte offsets
+                // should be relative to the newly generated trick file
+                tinfo->byteOffset += (tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize);
 			}
-            // Done copying all the packets, add pat/pmt byte count to the total byteOffset
-            {
-                byteOffset += (tinfo->patByteCount + tinfo->pmtByteCount);
-            }
+	        // add up pat/pmt byte count to the total for offset calculations
+	        tinfo->byteOffset  += (tinfo->patByteCount + tinfo->pmtByteCount);
 		}
 	}
 	return IfsTrue;

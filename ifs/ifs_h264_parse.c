@@ -338,8 +338,8 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
         const unsigned char bytes[])
 {
     unsigned char i;
-    IfsPts ifsPts;
 	static IfsPts last_pts = 0;
+    IfsPts ifsPts = last_pts;
 
     for (i = 0; i < pdeLen; i++)
     {
@@ -434,7 +434,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
       				char temp[33], temp1[33];
       				IfsLongLongToString(ifsPts, temp);
       				IfsLongLongToString(ifsHandle->begClockPerContainer/300, temp1);
-      				//printf("PTS FOUND %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
+      				//printf("initial PTS %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
       				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
         	  }
 
@@ -514,21 +514,24 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 			if (ifsHandle->entry.what & IfsIndexInfoContainsPts)
 			{
 				ifsPts =  ifsHandle->codec->h264->ifsPts;
+				//printf("using new pts --");
 			}
-	         else if (last_pts)
-	            {
-	            	ifsPts = (last_pts + (.033 * 90000));
-	            }
+			else if (last_pts)
+			{
+				ifsPts = (last_pts + (.033 * 90000));
+				//printf("using last pts --");
+			}
 			else
 			{
 				ifsPts = ifsHandle->codec->h264->ifsPcr/300;
+				//printf("using pcr -- ");
 			}
 
 			{
 				char temp[33], temp1[33];
 				IfsLongLongToString(ifsPts, temp);
 				IfsLongLongToString(ifsHandle->begClockPerContainer/300, temp1);
-				//printf("PTS FOUND %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
+			//	printf("PTS  %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
 				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
 			}
 			last_pts = ifsPts;
@@ -693,6 +696,8 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 #ifdef DEBUG_ALL_PES_CODES
             ifsHandle->extWhat |= ( bytes[i] & 0x80 ? IfsIndexInfoContainsPts : 0 );
             ifsHandle->entry.what |= ifsHandle->extWhat;
+            ifsHandle->entry.pts = IfsTrue;
+	    	//printf("IfsIndexInfoContainsPts set\n");
 #endif
 
             ifsHandle->ifsState = bytes[i] & 0x80 ? IfsStateGotVid4
@@ -789,6 +794,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             ifsHandle->codec->h264->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) >> 1; // 6..0
             //          RILOG_INFO("13 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->codec->h264->ifsPts>>32),
             //                 (long)ifsHandle->codec->h264->ifsPts, IfsLongLongToString(ifsHandle->codec->h264->ifsPts));
+  			last_pts = ifsHandle->codec->h264->ifsPts;
             ifsHandle->ifsState = IfsStateInitial;
             break;
         }

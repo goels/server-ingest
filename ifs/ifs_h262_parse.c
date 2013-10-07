@@ -206,8 +206,8 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
         const unsigned char bytes[])
 {
     unsigned char i;
-    IfsPts ifsPts;
 	static IfsPts last_pts = 0;
+    IfsPts ifsPts = last_pts;
 
     for (i = 0; i < pdeLen; i++)
     {
@@ -314,19 +314,22 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             // Check if the pts is present then pick it up
             if (ifsHandle->entry.what & IfsIndexInfoContainsPts)
             {
-	        ifsPts =  ifsHandle->codec->h262->ifsPts;
-            }
+				ifsPts =  ifsHandle->codec->h262->ifsPts;
+				//printf("using new pts --");
+			}
             else if (last_pts)
             {
             	ifsPts = (last_pts + (0.033 * 90000));
-            }
+				//printf("using last pts --");
+           }
             else
             {
                 if(!isProgramStream)
-	            ifsPts = ifsHandle->codec->h262->ifsPcr/300;
+                	ifsPts = ifsHandle->codec->h262->ifsPcr/300;
                 else
                     ifsPts = ifsHandle->ifsScr/300;
-            }
+				//printf("using pcr -- ");
+           }
 
 			{
 				char temp[33], temp1[33];
@@ -594,6 +597,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             ifsHandle->codec->h262->ifsPts |= ((IfsPts)(bytes[i] & 0xFE)) >> 1; // 6..0
             //          RILOG_INFO("13 0x%02X %08lX%08lX %s\n", bytes[i], (long)(ifsHandle->codec->h262->ifsPts>>32),
             //                 (long)ifsHandle->codec->h262->ifsPts, IfsLongLongToString(ifsHandle->codec->h262->ifsPts));
+  			last_pts = ifsHandle->codec->h262->ifsPts;
             ifsHandle->ifsState = IfsStateInitial;
             break;
         }

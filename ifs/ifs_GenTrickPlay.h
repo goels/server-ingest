@@ -132,6 +132,7 @@ typedef struct _trickInfo
     int  patByteCount, pmtByteCount;
     char *patPackets;
     char *pmtPackets;
+    int64_t byteOffset;
 } trickInfo;
 
 
