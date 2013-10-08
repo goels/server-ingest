@@ -157,7 +157,8 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 	trickInfo tinfo = {NULL, IfsFalse, IfsFalse,
 						0, 2, 1,  2, 0, 0, "", "",
 						NULL, NULL, NULL, NULL, NULL,
-						&trick_entryset, &refIframe};
+						&trick_entryset, &refIframe,
+						0, 0, NULL, NULL, 0 };
 
 
     printf("Info: Generating trick play file...\n");
@@ -686,7 +687,7 @@ static IfsBoolean IfsCopyIndexData(trickInfo *tinfo)
 		// For normal play index file the byte offsets are relative to the
 		// original media file
        if(tinfo->refIframe->speed == 1)
-     	   tinfo->byteOffset = (tinfo->ifsHandle->entry.realWhere * tinfo->ifsHandle->pktSize);
+     	   tinfo->byteOffset = (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize);
        //-------------------
 
  		float secx = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->entry.when, temp1));
