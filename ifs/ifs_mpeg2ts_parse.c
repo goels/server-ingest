@@ -63,6 +63,11 @@
 #include "ifs_mpeg2ts_parse.h"
 #include "ifs_utils.h"
 
+//--------------------------
+int giStreamPacketSize = 188; // mpeg2 by default, can be set to 192 later
+//---------------------------
+
+
 IfsPid mpeg2ts_GetPid(IfsPacket * pIfsPacket)
 {
 	int offset = (giStreamPacketSize == 192) ? 4 : 0;

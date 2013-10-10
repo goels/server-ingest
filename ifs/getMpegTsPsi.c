@@ -37,10 +37,6 @@
 #define AUDIO   2
 
 
-//--------------------------
-int giStreamPacketSize = 188; // mpeg2 by default, can be set to 192 later
-//---------------------------
-
 
 
 int
