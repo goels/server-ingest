@@ -6,7 +6,7 @@ ACLOCAL_AMFLAGS = -I m4
 hardware_platform = i386-linux-gnu
 
 lib_LTLIBRARIES = libifs.la
-bin_PROGRAMS = NdxDump IfsSim indexVideo 
+bin_PROGRAMS = NdxDump indexVideo 
 
 libifs_ladir = $(includedir)/ifs
 
@@ -84,43 +84,6 @@ NdxDump_SOURCES =	\
 	IfsIntf.h \
 	ifs_streamdefs.h 
 
-IfsSim_LDADD = \
-	../remap/libremap.la
-
-IfsSim_CPPFLAGS = \
-	-I../remap \
-	-I./ \
-	-DSTAND_ALONE \
-	$(CPPFLAGS)
-
-IfsSim_SOURCES = \
-	getMpegTsPsi.c \
-	ifs_mpeg2ts_parse.c \
-	ifs_mpeg2ps_parse.c \
-	ifs_mpeg4_parse.c \
-	ifs_h262_parse.c \
-	ifs_h264_parse.c \
-	ifs_h265_parse.c \
-	ifs_impl.c \
-	ifs_file.c \
-	ifs_operations.c \
-	ifs_utils.c \
-	IfsSim.c \
-	getMpegTsPsi.h \
-	ifs_mpeg2ts_parse.h \
-	ifs_mpeg2ps_parse.h \
-	ifs_mpeg4_parse.h \
-	ifs_h262_parse.h \
-	ifs_h262_impl.h \
-	ifs_h264_parse.h \
-	ifs_h264_impl.h \
-	ifs_h265_parse.h \
-	ifs_h265_impl.h \
-	ifs_file.h \
-	ifs_operations.h \
-	ifs_utils.h \
-	ifs_streamdefs.h 
-
 indexVideo_LDADD = \
 	../ifs/libifs.la
 
@@ -135,5 +98,4 @@ indexVideo_SOURCES = 	\
 	indexVideo.c \
 	getMpegTsPsi.h \
 	ifs_GenTrickPlay.h 
-
 
