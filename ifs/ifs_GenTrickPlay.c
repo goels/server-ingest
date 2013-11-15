@@ -191,6 +191,11 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 
     }
 
+    if(trick_speed == -1 || trick_speed == 0)
+    {
+        printf("Error: Invalid trick speed, Trick Speeds -1 and 0 not allowed.\n");
+        return IfsFalse;
+    }
     if(trick_speed < 0 && trick_speed >= -200)
     {
     	tinfo.trick_direction = -1;
@@ -591,6 +596,7 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 {
 	entrySet	thisSet;
 	unsigned int entrySetCount = 0;
+	int64_t last_byte_offset=0;
 
 	if(!tinfo)
 	{
@@ -600,7 +606,6 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 	tinfo->trick_entryset = &thisSet;
 	thisSet.codecType = tinfo->codecType;
 	thisSet.valid = IfsFalse;
-
 
 	if(tinfo->ifsHandle->pNdex)
 	{
@@ -628,10 +633,20 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 						IfsCopyEntrySetData(tinfo);
 						thisSet.valid = IfsFalse;
 						entrySetCount++;
+						last_byte_offset = tinfo->byteOffset + (tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
+						printf("%019lld %010lld\n ", last_byte_offset,  tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
 					}
 				}
             }
          }
+        {
+            // Add a 0-time entry as the last index for negative trick streams
+            float secx = 0;
+            int frame_size=0;
+            printf("%019lld %010d\n ", last_byte_offset,  frame_size);
+            fprintf(tinfo->pFile_ndx, "V I %011.3f %019lld %010d %14c\n", secx,
+                    last_byte_offset,  frame_size, ' ');
+        }
 	}
 	// read entry set from Index file
 	printf("Info: Total entrySet Count: %d\n", entrySetCount);
