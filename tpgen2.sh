@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 #
 #Script to generate trick play files for specified file(s) and speeds
 #
