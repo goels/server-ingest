@@ -65,7 +65,7 @@ extern ullong indexerSetting;
 
 static IfsBoolean isProgramStream = IfsFalse;
 
-static void ParseCode(IfsHandle ifsHandle, const unsigned char code)
+static void ParseCode(IfsHandle ifsHandle, const unsigned int code)
 {
 	ullong what = 0;
 	// IfsH262Index what = 0;
@@ -131,7 +131,7 @@ static void ParseCode(IfsHandle ifsHandle, const unsigned char code)
         case 0xBB: what = IfsIndexStartSysHeader; break; // SYSTEM_HEADER_START_CODE
         case 0xBC: what = IfsIndexStartProgramMap; break; // PROGRAM_STREAM_MAP
         case 0xBD: what = IfsIndexStartPrivate1; break; // PRIVATE_STREAM_1
-        case 0xBE: what = IfsIndexStartPadding; break; // PADDING_STREAM
+        case 0xBE: what = IfsIndexStartPadding; break; // PADDING
         case 0xBF: what = IfsIndexStartPrivate2; break; // PRIVATE_STREAM_2
         case 0xF0: what = IfsIndexStartEcm; break; // ECM_STREAM
         case 0xF1: what = IfsIndexStartEmm; break; // EMM_STREAM
@@ -202,10 +202,10 @@ static void ParseExt(IfsHandle ifsHandle, const unsigned char ext)
     ifsHandle->entry.what |= what;
 }
 
-static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
+static void ParseElementary(IfsHandle ifsHandle, const unsigned int pdeLen,
         const unsigned char bytes[])
 {
-    unsigned char i;
+    unsigned int i;
 	static IfsPts last_pts = 0;
     IfsPts ifsPts = last_pts;
 
@@ -270,6 +270,13 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
             case 0xBA: // PACK_START_CODE
                 isProgramStream = IfsTrue;
                 extract_SCR(ifsHandle, (unsigned char*)&bytes[i+1]);
+                ifsHandle->pack_count++;
+                //printf("Pack start code found.. ifsHandle->pack_count: %d\n", ifsHandle->pack_count);
+            break;
+            case 0xBB: // SYSTEM_HEADER_START_CODE
+                ifsHandle->sys_hdr_count++;
+                ifsHandle->entry.packWhere = ifsHandle->pack_count;
+                //printf("Sys header start code found..ifsHandle->sys_hdr_count: %d\n", ifsHandle->sys_hdr_count);
             break;
             default:
                 ifsHandle->ifsState
@@ -286,7 +293,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 
 				//printf("PTS FOUND %s PCR %s Diff:%lld, begClock: %s -- %s\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000,
 					//	temp3, h262_ParseWhat(ifsHandle, temp2, IfsIndexDumpModeDef, IfsTrue));
-				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
+				ifsHandle->entry.when = 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
 			}
             break;
 
@@ -336,7 +343,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 				IfsLongLongToString(ifsPts, temp);
 				IfsLongLongToString(ifsHandle->begClockPerContainer/300, temp1);
 				//printf("PTS FOUND %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
-				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
+				ifsHandle->entry.when = 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
 			}
 			last_pts = ifsPts;
 			ifsHandle->ifsState = IfsStateInitial;
@@ -720,7 +727,9 @@ IfsBoolean h262_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
         ParseElementary(ifsHandle, ifsHandle->pktSize, pIfsPacket->bytes);
     }
 
-    return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
+    //return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
+    return ( ((unsigned long)(ifsHandle->entry.what>>32) & (unsigned long)(indexerSetting>>32))
+            || ((unsigned long)ifsHandle->entry.what & indexerSetting) );
 }
 
 #ifdef DEBUG_ALL_PES_CODES
@@ -754,7 +763,9 @@ static void DumpExt(IfsH262Index ifsIndex, char * temp)
 char * h262_ParseWhat(IfsHandle ifsHandle, char * temp,
         const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean dumpPcrAndPts)
 {
-    IfsH262Index ifsIndex = ifsHandle->entry.what;
+    //IfsH262Index ifsIndex = ifsHandle->entry.what;
+
+    ullong ifsIndex = ifsHandle->entry.what;
 
     temp[0] = 0;
 

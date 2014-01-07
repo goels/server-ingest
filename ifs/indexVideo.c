@@ -142,7 +142,7 @@ static IfsBoolean dumpIndexFile(char *index_filename, unsigned format)
 		case IfsCodecTypeH261:
 		case IfsCodecTypeH262:
 		case IfsCodecTypeH263:
-			IfsSetMode(IfsIndexDumpModeDef, IfsH262IndexerSettingVerbose);
+			IfsSetMode(IfsIndexDumpModeAll, IfsH262IndexerSettingVerbose);
 			parseWhat = ifsHandle->codec->h262->ParseWhat;
             countIndexes = ifsHandle->codec->h262->CountIndexes;
             dumpIndexes = ifsHandle->codec->h262->DumpIndexes;
@@ -242,7 +242,8 @@ generate_IndexFile(char *stream_filename, char *index_filename, IfsHandle ifsHan
     }
     // initialize local variables
     pktSize = strmInfo->tsPktSize;
-	//printf("generate_IndexFile pktSize:%d\n", (int)pktSize);
+    printf("generate_IndexFile pktSize:%d\n", (int)pktSize);
+
 	if (IfsOpenWriter(".", index_filename, 0, &ifsHandle)
 			!= IfsReturnCodeNoErrorReported)
 	{
@@ -268,11 +269,11 @@ generate_IndexFile(char *stream_filename, char *index_filename, IfsHandle ifsHan
 	switch(strmInfo->codecType)
 	{
 		case IfsCodecTypeH264:
-			IfsSetMode(IfsIndexDumpModeOff, IfsH264IndexerSettingDefault);
+			IfsSetMode(IfsIndexDumpModeOff, IfsH264IndexerSettingVerbose);
 			break;
 		case IfsCodecTypeH262:
 		default:
-			IfsSetMode(IfsIndexDumpModeOff, IfsH262IndexerSettingDefault);
+			IfsSetMode(IfsIndexDumpModeAll, IfsH264IndexerSettingVerbose);
 			break;
 	}
 
@@ -284,12 +285,11 @@ generate_IndexFile(char *stream_filename, char *index_filename, IfsHandle ifsHan
     }
     i = 0;
     //printf("Indexing video file ...pktSize:%d\n", (int)pktSize);
-
     // Pretend each packet contains 1 second of data...
     while ((numPackets = fread(&ifsPacket, pktSize, 1, pInFile)) != 0)
     {
      	if (IfsWrite(ifsHandle, ++i * NSEC_PER_SEC, numPackets,
-                &ifsPacket) != IfsReturnCodeNoErrorReported)
+               &ifsPacket) != IfsReturnCodeNoErrorReported)
         {
             printf("Problems writing packet\n");
             fclose(pInFile);
@@ -353,7 +353,7 @@ get_streamInfo(char* inputFile, streamInfo *strmInfo)
         printf("(is not a TS, checking PS)\n");
         containerType = IfsContainerTypeMpeg2Ps;
         codecType = IfsCodecTypeH262;
-        stream.tsPktSize = IFS_TRANSPORT_PACKET_SIZE; 
+        stream.tsPktSize = MPEG_PS_PACKET_SIZE;
     }
     else
     {
@@ -476,8 +476,9 @@ main(int argc, char *argv[])
    // printf("\n%s, version %d, at %ld %s\n", argv[0], INTF_RELEASE_VERSION, now,
    //         asctime(gmtime(&now)));
 
+    // (.vob extension is specific to dvd derived program streams)
     if ((argc == 2) &&
-    		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg")))
+    		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg") || strstr(argv[1], ".vob")))
     {
     	printf("Generate index file ..\n");
     	if(get_streamInfo(argv[1], &strmInfo) == IfsTrue)
@@ -485,7 +486,7 @@ main(int argc, char *argv[])
     			retVal = 1;
     }
     else if((argc == 3) &&	// index with specified file name for .ndx file
-    		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg")))
+    		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg") || strstr(argv[1], ".vob")))
     {
     	printf("Generate index file: %s\n", argv[2]);
     	if(get_streamInfo(argv[1], &strmInfo) == IfsTrue)
@@ -500,7 +501,7 @@ main(int argc, char *argv[])
 			retVal = 1;
     }
     else if((argc >= 4) &&
-    		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg"))	 &&
+    		(strstr(argv[1], ".ts") || strstr(argv[1], ".mpg") || strstr(argv[1], ".vob"))	 &&
     		(strstr(argv[2], ".ndx")))
     {
     	printf("Generate trick play file ...\n");

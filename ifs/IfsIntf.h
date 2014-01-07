@@ -60,7 +60,8 @@
 
 #define DEBUG_ALL_PES_CODES
 
-#define MAX_TRANSPORT_PACKET_SIZE 208
+#define MPEG_PS_PACKET_SIZE 256
+#define MAX_TRANSPORT_PACKET_SIZE 256
 
 //#define IFS_TRANSPORT_PACKET_SIZE_192
 
@@ -196,7 +197,6 @@ typedef struct IfsPacket
     unsigned char bytes[MAX_TRANSPORT_PACKET_SIZE];
 
 } IfsPacket;
-
 
 extern ullong IfsIndexerSettingDefault;
 extern int giStreamPacketSize;

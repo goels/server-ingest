@@ -390,6 +390,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
 #endif
                 whatAll |= ifsHandle->entry.what;
             }
+
             if (indexDumpMode == IfsIndexDumpModeDef)
             {
                 RILOG_TRACE("%9ld %9ld %s\n", ifsHandle->entry.realWhere, // offset in packets
@@ -457,6 +458,7 @@ IfsReturnCode IfsWrite(IfsHandle ifsHandle, // Input (must be a writer)
         g_static_mutex_unlock(&(ifsHandle->mutex));
         return IfsReturnCodeFileWritingError;
     }
+
 
 #ifdef FLUSH_ALL_WRITES
     if (fflush(ifsHandle->pMpeg))

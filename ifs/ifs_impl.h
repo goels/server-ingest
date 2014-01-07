@@ -95,6 +95,8 @@ typedef struct IfsIndexEntry
     ullong what;
     NumPackets realWhere;
     NumPackets virtWhere;
+    NumPackets packWhere;
+
     IfsBoolean pts;
 
 #ifndef DEBUG_ALL_PES_CODES
@@ -168,6 +170,8 @@ typedef struct IfsHandleImpl
 
     IfsTime maxSize; // in seconds, 0 = value not used
 
+    int pack_count;
+    int sys_hdr_count;
     int numEmptyFreads;  // the number of times we performed an fread and got 0
 
     GStaticMutex mutex;  // TSB thread versus IFS thread protection
