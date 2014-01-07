@@ -65,7 +65,6 @@ IfsBoolean h265_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
 {
     ifsHandle->ifsState = IfsStateInitial;
 
-    //return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
     return ( ((unsigned long)(ifsHandle->entry.what>>32) & (unsigned long)(indexerSetting>>32))
             || ((unsigned long)ifsHandle->entry.what & indexerSetting) );
 }

@@ -829,7 +829,7 @@ IfsBoolean h264_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
         ParseElementary(ifsHandle, ifsHandle->pktSize, pIfsPacket->bytes);
     }
 
-    //return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
+    // any indexed events in this packet?
     return ( ((unsigned long)(ifsHandle->entry.what>>32) & (unsigned long)(indexerSetting>>32))
             || ((unsigned long)ifsHandle->entry.what & indexerSetting) );
 }

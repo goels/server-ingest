@@ -847,7 +847,7 @@ static IfsBoolean IfsCopyVobuIndexData(trickInfo *tinfo)
             // The last vobu size cannot be determined from the index info
             // leave it as 0 as an indication to rygel to use file size to
             // determine size of last vobu as ---> file_size - last_byte_offset
-            if(tinfo->ifsHandle->entry.packWhere == 0)
+            if(tinfo->currentVobu->entry.packWhere == 0)
                 tinfo->refVobu->vobu_size = 0;
             //((vobu_size > 0) ? vobu_size-1: 0)
             printf("time = %011.3f byte_offset = %019lld vobu_size = %010lld \n", secx,
@@ -907,7 +907,13 @@ static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo)
 	            else
 	            {
 	                if(tinfo->trick_speed == 1) // for normal speed, just copy the index data only
+	                {
+	                    printf("Info: tinfo->currentVobu->entry.packWhere: %d tinfo->refVobu->entry.packWhere: %d\n",
+	                            (int)tinfo->currentVobu->entry.packWhere, (int)tinfo->refVobu->entry.packWhere);
+                        tinfo->refVobu->pktCount =  tinfo->currentVobu->entry.packWhere -
+                                    tinfo->refVobu->entry.packWhere;
 	                    IfsCopyVobuIndexData(tinfo);
+	                }
 	                else
 	                    copyVobuData = IfsTrue;
 	            }
@@ -983,8 +989,11 @@ static void IfsSaveReferenceFrameData(trickInfo *tinfo)
             }
             else
             {
-                tinfo->refVobu->pktCount =  tinfo->currentVobu->entry.packWhere -
+                if(tinfo->trick_speed > 1)
+                {
+                    tinfo->refVobu->pktCount =  tinfo->currentVobu->entry.packWhere -
                             tinfo->refVobu->entry.packWhere;
+                }
             }
 
             tinfo->refVobu->entry = tinfo->currentVobu->entry;
@@ -1160,7 +1169,7 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
                         iframe_packet_count = tinfo->ifsHandle->entry.realWhere - tinfo->refVobu->entry.realWhere;
                     }
 	                i_frame_offset = iframe_packet_count * tinfo->ifsHandle->pktSize;
-                    printf("Info: i_frame_offset: %ld tinfo->refVobu->vobu_size: %ld\n",
+                    printf("Info: i_frame_offset: %lld tinfo->refVobu->vobu_size: %lld\n",
                                    i_frame_offset, tinfo->refVobu->vobu_size);
 	                tinfo->byteOffset += (i_frame_offset + tinfo->refVobu->vobu_size);
                     tinfo->refVobu->vobu_size =  numPacks * PROGRAM_STREAM_PACK_SIZE;
