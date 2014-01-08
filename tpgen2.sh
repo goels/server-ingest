@@ -9,7 +9,6 @@ app_dir=$CVP2_ROOT/bin
 app="indexVideo"
 src_dir=""
 des_dir=""
-ref_dir="item-refs"
 res_dir="Resource.0"
 mime_type="Unknown"
 item_dir=""
@@ -64,19 +63,6 @@ else
 	echo "Valid Profile: ${array_p[match_index]} , mime_type=$mime_type" 
 fi
 }
-
-
-
-function add_item_info()
-{
-	fullname=$1
-	fname=$(basename $fullname)
-	item_info="${fname%.*} reference file with play speed support"
-	#echo "title=$item_info"
-	echo "title=$item_info " > $1/$2
-
-}
-
 
 function add_file_resource_info()	#input required is the path, file name, source file name
 {
@@ -145,35 +131,11 @@ for FILE in $src_dir/*.$1
 		# use directory "./ndx" as a default temporary directory for generating binary index file
 		# remove the ndx directory for clean start, it will be recreated
 		remove_dir "ndx"
-		#
-		# Create ref_dir
-		if [ ! -d "$ref_dir" ]; then
-			mkdir $ref_dir
-			echo "Creating item-refs directory: $ref_dir"
-		fi
 		# Create media directory
 		if [ ! -d "$media_dir" ]; then
 			mkdir $media_dir
 			echo "Creating media directory: $media_dir"
 		fi
-		if [ "$profile_found" = "yes" ]; then 
-			ref_name="$profile"_"$base_filename"
-			item_ref_file=$ref_dir/$ref_name.item
-		else
-			ref_name=$full_filename.item
-			base_name=$full_filename
-			item_ref_file=$ref_dir/$ref_name
-		fi
-		#
-		# Create item ref file in "item-refs" directory
-		#----------------------------------
-		# 
-		now="$(date +'%Y-%m-%dT%T%Z')"	#date format: 2013-08-09T21:35:09Z
-		echo "Writing to ref file: $ref_dir/$item_ref_file"
-		echo "[item]" > $item_ref_file
-		echo "title=$base_filename" >> $item_ref_file
-		echo "date=$now" >> $item_ref_file	
-		echo "odid_uri=file://$media_dir/$ref_name/" >> $item_ref_file
 		#-----------------------------------
 		#
 		# create directory structure in the destination directory 
@@ -184,13 +146,26 @@ for FILE in $src_dir/*.$1
 		#
 		# create/write item.info file in this directory
 		#
+		ref_name="$profile"_"$base_filename"
+
 		dir=$media_dir/$ref_name
+		item_ref_file=$dir/$ref_name.item
+
 		if [ ! -d "$dir" ]; then
-			mkdir $dir
+			mkdir -p $dir
 			echo "Creating directory: $dir"
-		fi		
-		echo "Generating file: $dir/item.info"
-		add_item_info $dir item.info
+		fi
+
+                #
+		# Create item ref file
+		#----------------------------------
+		# 
+		now="$(date +'%Y-%m-%dT%T%Z')"	#date format: 2013-08-09T21:35:09Z
+		echo "Writing to ref file: $dir/$item_ref_file"
+		echo "[item]" > $item_ref_file
+		echo "title=$base_filename" >> $item_ref_file
+		echo "date=$now" >> $item_ref_file	
+		
 		#
 		#
 		if [ "$profile_found" = "yes" ]; then 
@@ -319,24 +294,15 @@ function usage()
 #---------------------------
 if [ -n "$1" ] && [ -n "$2" ]; then
 	main_dir="$PWD"
-	cd $1
-	src_dir="$PWD"
-	cd "$main_dir"
-	if [[ -d "$2" ]]; then 
-		cd "$2"
-		media_dir="$PWD/media"
-		ref_dir="$PWD/item-refs"
-	else
-		mkdir "$2"
-		cd "$2"
-		media_dir="$PWD/media"
-		ref_dir="$PWD/item-refs"
-	fi
-	cd $main_dir
+	src_dir="$1"
+	media_dir="$2/media"
+
+	mkdir -p "$2"
+
 	echo "-------------------------------------------"
 	echo " main_dir: $main_dir"
 	echo "  src dir: $src_dir"
-	echo "dest_dir: $media_dir"
+	echo " dest_dir: $media_dir"
 	echo " refs_dir: $refs_dir"
 	echo "--------------------------------------------"
 fi
