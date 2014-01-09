@@ -450,7 +450,6 @@ static IfsBoolean get_indexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
     iEntrySet->entry_IframeE = entry;
 
 
-
     switch(iEntrySet->codecType)
     {
         case IfsCodecTypeH264:  // H.264
@@ -642,6 +641,13 @@ static IfsBoolean get_vobuIndexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
                             printf("Index: 0X%08lX %08lX\n", (unsigned long) (entry.what >> 32), (unsigned long)entry.what);
                         }
                         else
+                        if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_SEQ))
+                        {
+                            foundWhat = IFS_FLAG_H262_SEQ;
+                            iEntrySet->entry_SPS = entry;
+                            printf("Info: Fetch --> Seq Hdr entry found, packet index: %06ld\n", entry.realWhere);
+                        }
+                        else
                         {
                             printf("Error: SEQ header not found\n");
                             return IfsFalse;
@@ -722,7 +728,7 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 		unsigned int iCnt = 1;
 	    char temp1[32]; // IfsToSecs only
 	    char temp2[256]; // ParseWhat
-
+	    IfsBoolean ret = IfsFalse;
 
 		// goto the end of the file
         fseek(tinfo->ifsHandle->pNdex, 0, SEEK_END);
@@ -741,28 +747,21 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 			        if(thisSet.containerType == IfsContainerTypeMpeg2Ps)
 			        {
 			            // Add vobu indexes to the index files
-                        IfsBoolean ret = get_vobuIndexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
-                        if(ret == IfsTrue)
-                        {
-                            thisSet.valid = IfsTrue;
-                            IfsCopyEntrySetData(tinfo);
-                            thisSet.valid = IfsFalse;
-                        }
-                        entrySetCount++;
-                        last_byte_offset = tinfo->byteOffset + (tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
+                        ret = get_vobuIndexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
 			        }
 			        else
 			        {
-	                    if(get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet))
-	                    {
-	                        thisSet.valid = IfsTrue;
-	                        IfsCopyEntrySetData(tinfo);
-	                        thisSet.valid = IfsFalse;
-	                        entrySetCount++;
-	                        last_byte_offset = tinfo->byteOffset + (tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
-	                        printf("%019lld %010lld\n ", last_byte_offset,  tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
-	                    }
+	                   ret = get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
 			        }
+                    if(ret == IfsTrue)
+                    {
+                        thisSet.valid = IfsTrue;
+                        IfsCopyEntrySetData(tinfo);
+                        thisSet.valid = IfsFalse;
+                        entrySetCount++;
+                        last_byte_offset = tinfo->byteOffset + (tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
+                        printf("%019lld %010lld\n ", last_byte_offset,  tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
+                    }
 				}
             }
         }
