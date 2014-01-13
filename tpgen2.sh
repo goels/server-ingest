@@ -109,7 +109,7 @@ item_dir="$dir"
 }
 
 
-function tpgen()
+function itemGen()
 {	#this function is called with two arguments
 tp_speed=$2
 file_type=$1
@@ -196,8 +196,8 @@ for FILE in $src_dir/*.$1
 			echo "Indexing file:" $FILE
 			cp -f $FILE $final_dest/$base_filename.$extension
 			NEW_FILE="$final_dest/$base_filename.$extension"
-			$app_dir/$app $NEW_FILE ndx >> tpgenlog.txt
-			$app_dir/$app $NEW_FILE ndx/0000000000.ndx $tp_speed $final_dest >> tpgenlog.txt
+			$app_dir/$app $NEW_FILE ndx >> itemGenlog.txt
+			$app_dir/$app $NEW_FILE ndx/0000000000.ndx $tp_speed $final_dest >> itemGenlog.txt
 			if [ "$tp_speed" = "1" ] ; then
 				mv $NEW_FILE $final_dest/$base_filename.1_1.$extension
 			else
@@ -205,17 +205,17 @@ for FILE in $src_dir/*.$1
 			fi
 			#
 			#following commented out code uses the original file name for indexing
-			#$app_dir/$app $FILE ndx >> tpgenlog.txt
-			#$app_dir/$app $FILE ndx/0000000000.ndx $tp_speed $final_dest >> tpgenlog.txt
+			#$app_dir/$app $FILE ndx >> itemGenlog.txt
+			#$app_dir/$app $FILE ndx/0000000000.ndx $tp_speed $final_dest >> itemGenlog.txt
 			#if [ "$tp_speed" = "1" ] ; then
 			#	cp -f $FILE $final_dest/$base_filename.1_1.$extension
 			#fi
 			#
 		fi
 		echo "-----------------------------------------"
-		echo " " >> tpgenlog.txt
-		echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >> tpgenlog.txt
-		echo " " >> tpgenlog.txt
+		echo " " >> itemGenlog.txt
+		echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >> itemGenlog.txt
+		echo " " >> itemGenlog.txt
 		remove_dir "ndx"
 	done
 }
@@ -223,7 +223,7 @@ for FILE in $src_dir/*.$1
 
 
 
-function tpgen_all()
+function itemGen_all()
 {
 # process stream files for specified speeds
 for arg in "${arglist[@]:$1}"; do
@@ -236,7 +236,7 @@ for arg in "${arglist[@]:$1}"; do
 			fi	
 		done
 		if [ "$count" -gt 0 ] ; then 
-			tpgen $extn $arg
+			itemGen $extn $arg
 		fi
 	done
 done
@@ -256,7 +256,7 @@ do
 	if [ "$profile_found" = "yes" ]; then 
 		# mime_type is already found and assigned at this point
 		src_dir=$_dir/$profile
-		tpgen_all $2
+		itemGen_all $2
 	else
 		echo "Invalid Profile, skip processing for this directory" 
 	fi
@@ -267,17 +267,17 @@ done
 function usage()
 {
 	echo " "
-	echo "Usage: $0 src_dir/ dest_dir/ [-p ./profiles.txt] <speed> <speed>"
-	echo "where: src_dir/  is the directory path where stream files are located"
-	echo "       dest_dir/ is the directory path where media directories/files will be generated"
+	echo "Usage: $0 src_dir dest_dir [-p ./profiles.txt] <speed> <speed>"
+	echo "where: src_dir  is the directory path where stream files are located"
+	echo "       dest_dir is the directory path where media directories/files will be generated"
 	echo "       option [-p ./profiles.txt]" 
 	echo "       if the -p is specified, then './profiles.txt' must be provided"
 	echo "       './profile.txt' is the text file containing the valid profiles and mime types information"
 	echo "       <speed> can be multiple speeds in range <-100 to -1> or <1 to 100>"
 	echo "example: 								"
-	echo "       ./tpgen2 ./streams/ ./media -p ./profile.txt 1 2 4 8"
-	echo "       ./tpgen2 ./streams/ ./media 1 2 4 8"
-	echo " Note: if -p option is not specified then only the media files located in src_dir/ will be processed."
+	echo "       ./itemGen ./streams ./media -p ./profile.txt 1 2 4 8"
+	echo "       ./itemGen ./streams ./media 1 2 4 8"
+	echo " Note: if -p option is not specified then only the media files located in src_dir will be processed."
 	echo "       if -p option is specified then only the media files contained in sub-directories with valid profile name"
 	echo "       as subdirectory name will be processed. Valid profile names are contained in the 'profile.txt' file."
 	exit 1;
@@ -319,5 +319,5 @@ else
 	echo "-p option not specified, processing stream files without profile information."
         # If profile is unknown prefix the directory with 'item' instead of 'unknown'
         profile="item" 
-	tpgen_all 2		#speed is specified in argument index 1
+	itemGen_all 2		#speed is specified in argument index 1
 fi
