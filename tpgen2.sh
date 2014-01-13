@@ -161,7 +161,7 @@ for FILE in $src_dir/*.$1
 		#----------------------------------
 		# 
 		now="$(date +'%Y-%m-%dT%T%Z')"	#date format: 2013-08-09T21:35:09Z
-		echo "Writing to ref file: $dir/$item_ref_file"
+		echo "Writing to ref file: $item_ref_file"
 		echo "[item]" > $item_ref_file
 		echo "title=$base_filename" >> $item_ref_file
 		echo "date=$now" >> $item_ref_file	
@@ -227,7 +227,7 @@ function tpgen_all()
 {
 # process stream files for specified speeds
 for arg in "${arglist[@]:$1}"; do
-	ext_list=(ts mpg mp4 TS MPG MP4)
+	ext_list=(ts mpg mp4 TS MPG vob VOB MP4)
 	for extn in ${ext_list[@]}; do	
 		count=0
 		for file in ${src_dir}/*.$extn; do
@@ -317,5 +317,7 @@ if [[ $# -ge 5 ]] && [[ "$3" == "-p" ]]; then
 	fi
 else
 	echo "-p option not specified, processing stream files without profile information."
+        # If profile is unknown prefix the directory with 'item' instead of 'unknown'
+        profile="item" 
 	tpgen_all 2		#speed is specified in argument index 1
 fi
