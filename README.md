@@ -1,1 +1,0 @@
-# Components for CVP2RI Server content ingest (static or dynamic). At a minimum, the code in this section of the CVP2 repository should index content and create files suitable for serving to a CVP2 client.
