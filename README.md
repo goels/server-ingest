@@ -1,11 +1,14 @@
 
-The 'server-ingest' indexing tool is used to generate trick streams and associated index files for random access and server side play speed support. It is a stand alone tool which is currently used by the CableLabs CVP2 rygel project for server side content preparation. The tool supports indexing of content in MPEG TS container format with H262/H264/AVC encoding (188 as well as 192 byte packets with and without time stamps), and MPEG PS container format (H262 encoding). Indexing of MP4 container format is not supported.
+The 'server-ingest' indexing tool is used to generate trick streams and associated index files for random access and server side play speed support. It is a stand alone tool which is currently used by the CableLabs CVP2 rygel project for server side content preparation. The tool supports indexing of content in MPEG TS container format with H262/H264/AVC encoding (188 and 192 byte packets with and without time stamps), and MPEG PS container format (H262 encoding). Indexing of MP4 container format is not supported.
 The ‘indexVideo’ binary is built as part of ‘server-ingest’ set of tools.  In addition to indexVideo, other tools built are ‘NdxDump’ and ‘IfsSim’. This project is hosted on Github (cablelabs/server-ingest).
 
 This section briefly describes ‘indexVideo’ which is used to generate trick stream files and associated index files for various DLNA media formats. Alternately, the script 'itemGen.sh' can be run to automate the process of index and trick file generation. The tool can be used with any suitable content conforming to DLNA prescribed media formats.
 Included below are links to freely available content that can be used for testing.
+
 http://mango.blender.org/download/ (Tears of Steel)
+
 http://www.bigbuckbunny.org/index.php/download/ (Big Buck Bunny)
+
 
 Getting the source and building
 -------------------------------
@@ -40,20 +43,21 @@ The script itemGen.sh is located in ‘server-ingest’ directory. It creates tr
 
 > ./itemGen.sh
 
-Usage: ./itemGen.sh src_dir dest_dir [-p ./profiles.txt] <speed> <speed> <speed>
+Usage: ./itemGen.sh src_dir dest_dir [-p ./profiles.txt] speed speed speed
 
 where:
 
-	src_dir  is the directory path where stream files are located
+src_dir  is the directory path where stream files are located
 
-	dest_dir is the directory path where media directories/files will be generated
+dest_dir is the directory path where media directories/files will be generated
 
-	option [-p ./profiles.txt]
+option [-p ./profiles.txt]
 
-	if the option -p is specified, then './profiles.txt' must be provided
-	'./profile.txt' is the text file containing the valid profiles and mime types information.  It is located in 		'server-ingest' directory.
+if the option -p is specified, then './profiles.txt' must be provided
+'./profile.txt' is the text file containing the valid profiles and mime types information.
+It is located in 'server-ingest' directory.
 
-	<speed> can be multiple speeds in range <-100 to -1> or <1 to 100>
+speed can be multiple speeds in range <-100 to -1> or <1 to 100>
 
 Note: if -p option is not specified then only the media files located in src_dir will be processed.
 if -p option is specified then only the media files contained in sub-directories with valid profile name
@@ -71,20 +75,35 @@ Media file 'B-MP2PS_N-70.mpg' is located in 'streams/MPEG_PS_NTSC'
 It results in the following trick stream and index file generation.
 
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC_B-MP2PS_N-70.item
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.-2_1.mpg
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.-2_1.mpg.index
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.1_1.mpg
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.-2_1.mpg.info
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.-4_1.mpg
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.-4_1.mpg.index
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/resource.info
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.1_1.mpg.index
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.2_1.mpg
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.-4_1.mpg.info
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.2_1.mpg.index
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.2_1.mpg.info
+
 odid/media/MPEG_PS_NTSC_B-MP2PS_N-70/MPEG_PS_NTSC.0/B-MP2PS_N-70.1_1.mpg.info
 
 example (without using profile.txt)
@@ -99,26 +118,46 @@ When the following script is run
 It results in the following files being created. 
 
 odid/media/item_B-MP2PS_N-70
+
 odid/media/item_B-MP2PS_N-70/Resource.0
+
 odid/media/item_B-MP2PS_N-70/Resource.0/B-MP2PS_N-70.1_1.mpg
+
 odid/media/item_B-MP2PS_N-70/Resource.0/resource.info
+
 odid/media/item_B-MP2PS_N-70/Resource.0/B-MP2PS_N-70.1_1.mpg.index
+
 odid/media/item_B-MP2PS_N-70/Resource.0/B-MP2PS_N-70.2_1.mpg
+
 odid/media/item_B-MP2PS_N-70/Resource.0/B-MP2PS_N-70.2_1.mpg.index
+
 odid/media/item_B-MP2PS_N-70/Resource.0/B-MP2PS_N-70.2_1.mpg.info
+
 odid/media/item_B-MP2PS_N-70/Resource.0/B-MP2PS_N-70.1_1.mpg.info
+
 odid/media/item_B-MP2PS_N-70/item_B-MP2PS_N-70.item
 
+
 odid/media/item_O-MP2TS_SN_I-1
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0/O-MP2TS_SN_I-1.2_1.mpg.index
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0/O-MP2TS_SN_I-1.2_1.mpg
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0/resource.info
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0/O-MP2TS_SN_I-1.1_1.mpg.index
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0/O-MP2TS_SN_I-1.1_1.mpg
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0/O-MP2TS_SN_I-1.1_1.mpg.info
+
 odid/media/item_O-MP2TS_SN_I-1/Resource.0/O-MP2TS_SN_I-1.2_1.mpg.info
+
 odid/media/item_O-MP2TS_SN_I-1/item_O-MP2TS_SN_I-1.item
+
 
 The resulting destination 'odid/media' directory is in a format expected by the odid media engine. It is referred to in the rygel.conf file under the odid section (e.g: uris=/home/prasanna/cvp2/server-ingest/odid/media)
 
@@ -132,26 +171,26 @@ Usage1:  indexVideo <input>
 
 Generates the index file
 
-	Where:
+Where:
 
-	<input> is one of the following three cases:
+<input> is one of the following three cases:
 
-	1) an MPEG2TS file such as plain.mpg
+1) an MPEG2TS file such as plain.mpg
 
-	2) an MPEG2PS file such as departing_earth.ps
+2) an MPEG2PS file such as departing_earth.ps
 
-	3) an MPEG4 file such as mp4_video_in_mp2ts.ts
+3) an MPEG4 file such as mp4_video_in_mp2ts.ts
 
  
 Usage2:  indexVideo <index_filename> <format>
 
 Dumps the binary index file entries in text format
 
-	Where:
+Where:
 
-	<index_filename> is file name of the index file to be dumped in text format
+<index_filename> is file name of the index file to be dumped in text format
 
-	<format> is '2' for mpeg-2, '4' for h.264 file format of the index file
+<format> is '2' for mpeg-2, '4' for h.264 file format of the index file
 
  
 
@@ -159,17 +198,18 @@ Usage3:  indexVideo <stream file name> <index_filename> <trick_speed>
 
 Generates the trick file using the index file name, stream file name, and trick speed
 
-	Where:
+Where:
 
-	<stream file name> is the file name of the associated stream file used with the index file
+<stream file name> is the file name of the associated stream file used with the index file
 
-	<index_filename>  is  the file name of the index file to be used for generating the trick file
+<index_filename>  is  the file name of the index file to be used for generating the trick file
 
-	<trick_speed> is the number '1 to 100'  used for generating specific speed Fast Forward trick file 
+<trick_speed> is the number '1 to 100'  used for generating specific speed Fast Forward trick file 
 
-                      or the number '-2 to -100'  used for generating specific speed Fast Reverse trick file
+or the number '-2 to -100'  used for generating specific speed Fast Reverse trick file
 
-                      the number '1' is used for generating 1x speed index text file only for the normal speed
+the number '1' is used for generating 1x speed index text file only for the normal speed
+
 
 Example:
 
