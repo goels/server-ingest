@@ -8,9 +8,9 @@
 //  (1) BSD 2-clause 
 //   Redistribution and use in source and binary forms, with or without modification, are
 //   permitted provided that the following conditions are met:
-//        ·Redistributions of source code must retain the above copyright notice, this list 
+//        ï¿½Redistributions of source code must retain the above copyright notice, this list 
 //             of conditions and the following disclaimer.
-//        ·Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
+//        ï¿½Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
 //             and the following disclaimer in the documentation and/or other materials provided with the 
 //             distribution.
 //   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
@@ -84,15 +84,18 @@
 #define MAX_PATH 260
 #endif
 
+#define PROGRAM_STREAM_PACK_SIZE 2048
 
 typedef struct _entrySet
 {
 	IfsBoolean		valid;			// valid flag
 	IfsCodecType 	codecType;		// 2 for 262, 4 for 264
+    IfsContainerType containerType; // PS or TS
 	IfsIndexEntry 	entry_AUD; 		// entry for AUD for h.264 or GOP for h.262
 	IfsIndexEntry 	entry_SPS;		// entry for SPS for h.264 or SEQ for h.262
 	IfsIndexEntry 	entry_IframeB; 	// entry for I-frame start
 	IfsIndexEntry	entry_IframeE;	// entry for I-frame end
+    IfsIndexEntry   entry_sys_hdr_VobuB;  // entry for system header (VOBU begin)
 } entrySet;
 
 
@@ -108,7 +111,15 @@ typedef struct _refIframeEntery
 	unsigned	  speed;
 } refIframeEntry;
 
-
+typedef struct _refVobuEntry
+{
+    unsigned long  index;
+    unsigned long  uIframeNum;
+    IfsIndexEntry    entry;
+    unsigned        pktCount;
+    int64_t          byteOffset;
+    int64_t          vobu_size;
+} refVobuEntry;
 
 // trick file generation stuff
 typedef struct _trickInfo
@@ -116,10 +127,12 @@ typedef struct _trickInfo
 	IfsHandle ifsHandle;
 	IfsBoolean newTrickFile;
 	IfsBoolean firstRefIframe;
+    IfsBoolean firstRefVobu;
 	unsigned long uIframeNum;
 	unsigned trick_speed;
 	int		 trick_direction;
     IfsCodecType codecType;
+    IfsContainerType containerType;
 	long total_frame_count;
 	int  framerate;
 	char ts_filename[MAX_PATH];
@@ -129,6 +142,8 @@ typedef struct _trickInfo
 						const IfsIndexDumpMode ifsIndexDumpMode, const IfsBoolean);
 	entrySet   *trick_entryset;
     refIframeEntry *refIframe;
+    refVobuEntry *refVobu;
+    refVobuEntry *currentVobu;
     int  patByteCount, pmtByteCount;
     char *patPackets;
     char *pmtPackets;

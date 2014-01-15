@@ -82,7 +82,9 @@ static IfsBoolean IfsCopyPackets(FILE *infile_ts, FILE *outfile_tm, unsigned lon
 static IfsBoolean IfsCopyFrameData(trickInfo *tinfo);
 static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo);
 static IfsBoolean IfsCopyIndexData(trickInfo *tinfo);
+static IfsBoolean IfsCopyVobuIndexData(trickInfo *tinfo);
 static IfsBoolean getPatPmtPackets(streamInfo *strmInfo, trickInfo *tinfo);
+static void IfsSaveReferenceFrameData(trickInfo *tinfo);
 
 //-------------------------------------------------------
 
@@ -154,10 +156,12 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 
 	entrySet   trick_entryset;
     refIframeEntry refIframe;
-	trickInfo tinfo = {NULL, IfsFalse, IfsFalse,
-						0, 2, 1,  2, 0, 0, "", "",
+    refVobuEntry refVobu;
+    refVobuEntry currentVobu;
+	trickInfo tinfo = {NULL, IfsFalse, IfsFalse, IfsFalse,
+						0, 2, 1, 2, 2, 0, 0, "", "",
 						NULL, NULL, NULL, NULL, NULL,
-						&trick_entryset, &refIframe,
+						&trick_entryset, &refIframe, &refVobu, &currentVobu,
 						0, 0, NULL, NULL, 0 };
 
 
@@ -214,7 +218,9 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
  	}
 
 	tinfo.codecType = strmInfo->codecType;
+	tinfo.containerType = strmInfo->containerType;
 	tinfo.trick_entryset->codecType = strmInfo->codecType;
+	tinfo.trick_entryset->containerType = strmInfo->containerType;
 
     switch(strmInfo->codecType)
     {
@@ -236,7 +242,9 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
     	if (strstr(strmInfo->stream_filename, ".ts4") ||
         	strstr(strmInfo->stream_filename, ".ts2") ||
         	strstr(strmInfo->stream_filename, ".mpg") ||
+        	strstr(strmInfo->stream_filename, ".vob") ||
         	strstr(strmInfo->stream_filename, ".ts"))
+    	    // (.vob is for dvd derived program streams)
         {
     		printf("stream file name: %s\n", strmInfo->stream_filename);
            	strcpy(tinfo.ts_filename, strmInfo->stream_filename);
@@ -400,7 +408,7 @@ static unsigned IfsCheck_SEQ_PIC(IfsCodecType codecType, ullong ifsIndex)
 }
 
 
-static IfsBoolean get_indexEntry(FILE *fpIndex, IfsIndexEntry *iEntry, unsigned long flags)
+static IfsBoolean get_indexEntry(FILE *fpIndex, IfsIndexEntry *iEntry, unsigned long long flags)
 {
 	IfsBoolean bRead = IfsFalse;
 
@@ -411,6 +419,7 @@ static IfsBoolean get_indexEntry(FILE *fpIndex, IfsIndexEntry *iEntry, unsigned 
 	}
 	iEntry->what = 0;
 	iEntry->realWhere = 0;
+
 	// read entries until matching with flags
 	do
 	{
@@ -423,173 +432,279 @@ static IfsBoolean get_indexEntry(FILE *fpIndex, IfsIndexEntry *iEntry, unsigned 
 	return bRead;
 }
 
-
-
 static IfsBoolean get_indexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
 {
-	IfsBoolean result = IfsFalse;
-	IfsIndexEntry entry = {0, 0, 0, 0};
-	unsigned long foundWhat = 0;
+    IfsBoolean result = IfsFalse;
+    IfsIndexEntry entry = {0, 0, 0, 0};
+    unsigned long foundWhat = 0;
 
-	if(!(fpIndex) || !(iEntrySet))
-	{
-		printf("Error: input parameter pointer is NULL\n");
-		return IfsFalse;
-	}
-	// clear the entries
-	iEntrySet->entry_AUD = entry;
-	iEntrySet->entry_SPS = entry;
+    if(!(fpIndex) || !(iEntrySet))
+    {
+        printf("Error: input parameter pointer is NULL\n");
+        return IfsFalse;
+    }
+    // clear the entries
+    iEntrySet->entry_AUD = entry;
+    iEntrySet->entry_SPS = entry;
     iEntrySet->entry_IframeB =  iEntrySet->entry_IframeE;
     iEntrySet->entry_IframeE = entry;
 
 
+    switch(iEntrySet->codecType)
+    {
+        case IfsCodecTypeH264:  // H.264
+            // first get the AUD or SPS entry
+            if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H264_AUD | IFS_FLAG_H264_SPS)) )
+            {
+                if(entry.what & IFS_FLAG_H264_AUD)
+                {
+                    foundWhat = IFS_FLAG_H264_AUD;
+                    iEntrySet->entry_AUD = entry;
+                    //printf("Info: Fetch -> AUD entry found, packet index: %06ld\n", entry.realWhere);
+                }
 
-	switch(iEntrySet->codecType)
-	{
-		case IfsCodecTypeH264:	// H.264
-			// first get the AUD or SPS entry
-			if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H264_AUD | IFS_FLAG_H264_SPS)) )
-			{
-				if(entry.what & IFS_FLAG_H264_AUD)
-				{
-					foundWhat = IFS_FLAG_H264_AUD;
-					iEntrySet->entry_AUD = entry;
-					//printf("Info: Fetch -> AUD entry found, packet index: %06ld\n", entry.realWhere);
-				}
+                // check for SPS
+                if(entry.what & IFS_FLAG_H264_SPS)
+                {
+                    foundWhat = IFS_FLAG_H264_SPS;
+                    iEntrySet->entry_SPS = entry;
+                    //printf("Info: SPS entry found, packet index: %06ld\n", entry.realWhere);
+                }
+                else if(entry.what & (IFS_FLAG_H264_PIC_I | IFS_FLAG_H264_PIC_B | IFS_FLAG_H264_PIC_P))
+                {
+                    return IfsFalse;
+                }
+                else if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H264_SPS | IFS_FLAG_H264_PIC_I | IFS_FLAG_H264_PIC_B | IFS_FLAG_H264_PIC_P)))
+                {
+                    if(!(entry.what & IFS_FLAG_H264_SPS))   // Wrong AUD entry, SPS is expected here
+                        return IfsFalse;
+                    foundWhat = IFS_FLAG_H264_SPS;
+                    iEntrySet->entry_SPS = entry;
+                    //printf("Info: Fetch -> SPS entry found, packet index: %06ld\n", entry.realWhere);
+                }
+                else
+                {
+                    printf("Error: SPS/SEQ not found\n");
+                    return IfsFalse;
+                }
+                // check if AUD found, else set AUD entry to SPS
+                if(!(foundWhat & IFS_FLAG_H264_AUD))
+                    iEntrySet->entry_AUD = iEntrySet->entry_SPS;
 
-				// check for SPS
-				if(entry.what & IFS_FLAG_H264_SPS)
-				{
-					foundWhat = IFS_FLAG_H264_SPS;
-					iEntrySet->entry_SPS = entry;
-					//printf("Info: SPS entry found, packet index: %06ld\n", entry.realWhere);
-				}
-				else if(entry.what & (IFS_FLAG_H264_PIC_I | IFS_FLAG_H264_PIC_B | IFS_FLAG_H264_PIC_P))
-				{
-					return IfsFalse;
-				}
-				else if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H264_SPS | IFS_FLAG_H264_PIC_I | IFS_FLAG_H264_PIC_B | IFS_FLAG_H264_PIC_P)))
-				{
-					if(!(entry.what & IFS_FLAG_H264_SPS))	// Wrong AUD entry, SPS is expected here
-						return IfsFalse;
-					foundWhat = IFS_FLAG_H264_SPS;
-					iEntrySet->entry_SPS = entry;
-					//printf("Info: Fetch -> SPS entry found, packet index: %06ld\n", entry.realWhere);
-				}
-				else
-				{
-					printf("Error: SPS/SEQ not found\n");
-					return IfsFalse;
-				}
-				// check if AUD found, else set AUD entry to SPS
-				if(!(foundWhat & IFS_FLAG_H264_AUD))
-					iEntrySet->entry_AUD = iEntrySet->entry_SPS;
+                // Now, check for I-frame
+                if(entry.what & IFS_FLAG_H264_PIC_I)
+                {
+                    foundWhat = IFS_FLAG_H264_PIC_I;
+                    iEntrySet->entry_IframeB = entry;
+                    //printf("Info: I frame entry found, packet index: %06ld\n", entry.realWhere);
+                }
+                else if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H264_PIC_I))
+                {
+                    foundWhat = IFS_FLAG_H264_PIC_I;
+                    iEntrySet->entry_IframeB = entry;
+                    //printf("Info: Fetch -> I-frame entry found, packet index: %06ld\n", entry.realWhere);
+                }
+                else
+                {
+                    printf("Error: I frame entry not found\n");
+                    return IfsFalse;
+                }
 
-				// Now, check for I-frame
-				if(entry.what & IFS_FLAG_H264_PIC_I)
-				{
-					foundWhat = IFS_FLAG_H264_PIC_I;
-					iEntrySet->entry_IframeB = entry;
-					//printf("Info: I frame entry found, packet index: %06ld\n", entry.realWhere);
-				}
-				else if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H264_PIC_I))
-				{
-					foundWhat = IFS_FLAG_H264_PIC_I;
-					iEntrySet->entry_IframeB = entry;
-					//printf("Info: Fetch -> I-frame entry found, packet index: %06ld\n", entry.realWhere);
-				}
-				else
-				{
-					printf("Error: I frame entry not found\n");
-					return IfsFalse;
-				}
+                // here we should have the I-frame entry
+                // now get the end of the I-frame i.e. next B,P,I,or,SPS etc.
+                if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H264_PIC_IEnd))
+                {
+                    iEntrySet->entry_IframeE = entry;
+                    //printf("Info: Fetch -> I-frame entry found, packet index: %06ld\n", entry.realWhere);
+                    result = IfsTrue;   // now we have every entry needed
+                }
+            }
+            else // did not get the entry
+            {
+                printf("Error: AUD or SPS not found, possible end of file\n");
+            }
+            break;
+        case IfsCodecTypeH262: // H.262
+            // first get the AUD or SPS entry
+            //if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H262_SEQ | IFS_FLAG_H262_GOP)) )
+            if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_SEQ) )
+            {
+                // check for SEQ
+                if(entry.what & IFS_FLAG_H262_SEQ)
+                {
+                    foundWhat = IFS_FLAG_H262_SEQ;
+                    iEntrySet->entry_SPS = entry;
+                    printf("Info: Fetch --> Seq Hdr entry found, packet index: %06ld\n", entry.realWhere);
+                    printf("Index: 0X%08lX %08lX\n", (unsigned long) (entry.what >> 32), (unsigned long)entry.what);
+                }
+                else
+                {
+                    printf("Error: SEQ header not found\n");
+                    return IfsFalse;
+                }
 
-				// here we should have the I-frame entry
-				// now get the end of the I-frame i.e. next B,P,I,or,SPS etc.
-				if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H264_PIC_IEnd))
-				{
-					iEntrySet->entry_IframeE = entry;
-					//printf("Info: Fetch -> I-frame entry found, packet index: %06ld\n", entry.realWhere);
-					result = IfsTrue;	// now we have every entry needed
-				}
-			}
-			else // did not get the entry
-			{
-				printf("Error: AUD or SPS not found, possible end of file\n");
-			}
-			break;
-		case IfsCodecTypeH262: // H.262
-			// first get the AUD or SPS entry
-			//if(get_indexEntry(fpIndex, &entry, (IFS_FLAG_H262_SEQ | IFS_FLAG_H262_GOP)) )
-			if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_SEQ) )
-			{
-				// check for SEQ
-				if(entry.what & IFS_FLAG_H262_SEQ)
-				{
-					foundWhat = IFS_FLAG_H262_SEQ;
-					iEntrySet->entry_SPS = entry;
-					//printf("Info: Fetch --> Seq Hdr entry found, packet index: %06ld\n", entry.realWhere);
-				}
-				else
-				{
-					printf("Error: SEQ header not found\n");
-					return IfsFalse;
-				}
+                if(entry.what & IFS_FLAG_H262_GOP)  //check if got GOP, it may not be there
+                {
+                    foundWhat = IFS_FLAG_H262_GOP;
+                    iEntrySet->entry_AUD = entry;
+                    printf("Info: GOP entry found, packet index: %06ld\n", entry.realWhere);
+                }
+                else
+                {   // set it to SEQ
+                    iEntrySet->entry_AUD = iEntrySet->entry_SPS;
+                }
 
-				if(entry.what & IFS_FLAG_H262_GOP)  //check if got GOP, it may not be there
-				{
-					foundWhat = IFS_FLAG_H262_GOP;
-					iEntrySet->entry_AUD = entry;
-					//printf("Info: GOP entry found, packet index: %06ld\n", entry.realWhere);
-				}
-				else
-				{	// set it to SEQ
-					iEntrySet->entry_AUD = iEntrySet->entry_SPS;
-				}
+                // Now, check for I-frame, we might have I frame
+                if(entry.what & IFS_FLAG_H262_PIC_I)
+                {
+                    foundWhat = IFS_FLAG_H262_PIC_I;
+                    iEntrySet->entry_IframeB = entry;
+                    printf("Info: I-frameB entry found, packet index: %06ld\n", entry.realWhere);
+                }
+                else    // I not found yet, so get it
+                if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_PIC_I))
+                {
+                    //if(entry.what & IFS_FLAG_H262_PIC_I)
+                    {
+                        foundWhat = IFS_FLAG_H262_PIC_I;
+                        iEntrySet->entry_IframeB = entry;
+                        printf("Info: I-frameB entry found, packet index: %06ld\n", entry.realWhere);
+                    }
+                }
+                else
+                {
+                    printf("Error: I frame entry not found\n");
+                    return IfsFalse;
+                }
 
-				// Now, check for I-frame, we might have I frame
-				if(entry.what & IFS_FLAG_H262_PIC_I)
-				{
-					foundWhat = IFS_FLAG_H262_PIC_I;
-					iEntrySet->entry_IframeB = entry;
-					//printf("Info: I-frameB entry found, packet index: %06ld\n", entry.realWhere);
-				}
-				else	// I not found yet, so get it
-				if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_PIC_I))
-				{
-					//if(entry.what & IFS_FLAG_H262_PIC_I)
-					{
-						foundWhat = IFS_FLAG_H262_PIC_I;
-						iEntrySet->entry_IframeB = entry;
-						//printf("Info: I-frameB entry found, packet index: %06ld\n", entry.realWhere);
-					}
-				}
-				else
-				{
-					printf("Error: I frame entry not found\n");
-					return IfsFalse;
-				}
+                // here we should have the I-frame entry
+                // now get the end of the I-frame i.e. next B,P,I,or,SPS etc.
+                if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_PIC_IEnd))
+                {
+                    iEntrySet->entry_IframeE = entry;
+                    printf("Info: Fetch -> I-frameE entry found, packet index: %06ld\n", entry.realWhere);
+                    result = IfsTrue;   // now we have every entry needed
+                }
+            }
+            else
+            {
+                printf("Error: SEQ header not found\n");
+                return IfsFalse;
+            }
+            break;
+        default:
+            printf("Error: Invalid stream format specified: %d\n", iEntrySet->codecType);
+            return IfsFalse;
+    }
+    return result;
+}
 
-				// here we should have the I-frame entry
-				// now get the end of the I-frame i.e. next B,P,I,or,SPS etc.
-				if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_PIC_IEnd))
-				{
-					iEntrySet->entry_IframeE = entry;
-					//printf("Info: Fetch -> I-frameE entry found, packet index: %06ld\n", entry.realWhere);
-					result = IfsTrue;	// now we have every entry needed
-				}
-			}
-			else
-			{
-				printf("Error: SEQ header not found\n");
-				return IfsFalse;
-			}
-			break;
-		default:
-			printf("Error: Invalid stream format specified: %d\n", iEntrySet->codecType);
-			return IfsFalse;
-	}
-	return result;
+static IfsBoolean get_vobuIndexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
+{
+    IfsBoolean result = IfsFalse;
+    IfsIndexEntry entry = {0, 0, 0, 0};
+    unsigned long foundWhat = 0;
+
+    if(!(fpIndex) || !(iEntrySet))
+    {
+        printf("Error: input parameter pointer is NULL\n");
+        return IfsFalse;
+    }
+    iEntrySet->entry_sys_hdr_VobuB =  entry;
+
+    switch(iEntrySet->codecType)
+    {
+        case IfsCodecTypeH264:  // H.264
+            break;
+        case IfsCodecTypeH262: // H.262
+            // Find system header (specific to program streams)
+            if(iEntrySet->containerType == IfsContainerTypeMpeg2Ps)
+            {
+                //printf("Find system header..\n");
+                {
+                    if(get_indexEntry(fpIndex, &entry, IfsIndexStartSysHeader))
+                    {
+                        iEntrySet->entry_sys_hdr_VobuB = entry;
+                        printf("Info: Fetch -> entry_sys_hdr_VobuB entry found, pack index: %06ld\n", entry.packWhere);
+                        result = IfsTrue;
+                    }
+                }
+                //printf("Find seq header..\n");
+                {
+                    {
+                        // check for SEQ
+                        if(entry.what & IFS_FLAG_H262_SEQ)
+                        {
+                            foundWhat = IFS_FLAG_H262_SEQ;
+                            iEntrySet->entry_SPS = entry;
+                            printf("Info: Fetch --> Seq Hdr entry found, packet index: %06ld\n", entry.realWhere);
+                            printf("Index: 0X%08lX %08lX\n", (unsigned long) (entry.what >> 32), (unsigned long)entry.what);
+                        }
+                        else
+                        if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_SEQ))
+                        {
+                            foundWhat = IFS_FLAG_H262_SEQ;
+                            iEntrySet->entry_SPS = entry;
+                            printf("Info: Fetch --> Seq Hdr entry found, packet index: %06ld\n", entry.realWhere);
+                        }
+                        else
+                        {
+                            printf("Error: SEQ header not found\n");
+                            return IfsFalse;
+                        }
+
+                        if(entry.what & IFS_FLAG_H262_GOP)  //check if got GOP, it may not be there
+                        {
+                            foundWhat = IFS_FLAG_H262_GOP;
+                            iEntrySet->entry_AUD = entry;
+                            printf("Info: GOP entry found, packet index: %06ld\n", entry.realWhere);
+                        }
+                        else
+                        {   // set it to SEQ
+                            iEntrySet->entry_AUD = iEntrySet->entry_SPS;
+                        }
+
+                        // Now, check for I-frame, we might have I frame
+                        if(entry.what & IFS_FLAG_H262_PIC_I)
+                        {
+                            foundWhat = IFS_FLAG_H262_PIC_I;
+                            iEntrySet->entry_IframeB = entry;
+                            printf("Info: I-frameB entry found, packet index: %06ld\n", entry.realWhere);
+                        }
+                        else    // I not found yet, so get it
+                        if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_PIC_I))
+                        {
+                            //if(entry.what & IFS_FLAG_H262_PIC_I)
+                            {
+                                foundWhat = IFS_FLAG_H262_PIC_I;
+                                iEntrySet->entry_IframeB = entry;
+                                printf("Info: I-frameB entry found, packet index: %06ld\n", entry.realWhere);
+                            }
+                        }
+                        else
+                        {
+                            printf("Error: I frame entry not found\n");
+                            return IfsFalse;
+                        }
+
+                        // here we should have the I-frame entry
+                        // now get the end of the I-frame i.e. next B,P,I,or,SPS etc.
+                        if(get_indexEntry(fpIndex, &entry, IFS_FLAG_H262_PIC_IEnd))
+                        {
+                            iEntrySet->entry_IframeE = entry;
+                            printf("Info: Fetch -> I-frameE entry found, packet index: %06ld\n", entry.realWhere);
+                            result = IfsTrue;   // now we have every entry needed
+                        }
+                    }
+                }
+            }
+
+            break;
+        default:
+            printf("Error: Invalid stream format specified: %d\n", iEntrySet->codecType);
+            return IfsFalse;
+    }
+    return result;
 }
 
 static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
@@ -605,6 +720,7 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 	}
 	tinfo->trick_entryset = &thisSet;
 	thisSet.codecType = tinfo->codecType;
+    thisSet.containerType = tinfo->containerType;
 	thisSet.valid = IfsFalse;
 
 	if(tinfo->ifsHandle->pNdex)
@@ -612,12 +728,12 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 		unsigned int iCnt = 1;
 	    char temp1[32]; // IfsToSecs only
 	    char temp2[256]; // ParseWhat
-
+	    IfsBoolean ret = IfsFalse;
 
 		// goto the end of the file
         fseek(tinfo->ifsHandle->pNdex, 0, SEEK_END);
         while (fseek(tinfo->ifsHandle->pNdex, -(sizeof(IfsIndexEntry)*iCnt++), SEEK_END) >= 0)
-         {
+        {
             if(fread(&tinfo->ifsHandle->entry, 1, sizeof(IfsIndexEntry), tinfo->ifsHandle->pNdex) == sizeof(IfsIndexEntry))
             {
             	if(IfsCheck_SEQ_PIC(tinfo->codecType, tinfo->ifsHandle->entry.what) & IFS_TEST_FLAG_SPS)
@@ -627,18 +743,28 @@ static IfsBoolean handle_ReverseTrickFileIndexing(trickInfo *tinfo)
 			       	printf("Info: entry: %06d -  %6ld %s  %s\n", iCnt, tinfo->ifsHandle->entry.realWhere,
 							IfsToSecs(tinfo->ifsHandle->entry.when, temp1),
 							tinfo->parseWhat(tinfo->ifsHandle, temp2, IfsIndexDumpModeDef, IfsTrue));
-					if(get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet))
-					{
-						thisSet.valid = IfsTrue;
-						IfsCopyEntrySetData(tinfo);
-						thisSet.valid = IfsFalse;
-						entrySetCount++;
-						last_byte_offset = tinfo->byteOffset + (tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
-						printf("%019lld %010lld\n ", last_byte_offset,  tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
-					}
+			        // Compute VOBU index data (specific to program streams only)
+			        if(thisSet.containerType == IfsContainerTypeMpeg2Ps)
+			        {
+			            // Add vobu indexes to the index files
+                        ret = get_vobuIndexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
+			        }
+			        else
+			        {
+	                   ret = get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
+			        }
+                    if(ret == IfsTrue)
+                    {
+                        thisSet.valid = IfsTrue;
+                        IfsCopyEntrySetData(tinfo);
+                        thisSet.valid = IfsFalse;
+                        entrySetCount++;
+                        last_byte_offset = tinfo->byteOffset + (tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
+                        printf("%019lld %010lld\n ", last_byte_offset,  tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize);
+                    }
 				}
             }
-         }
+        }
         {
             // Add a 0-time entry as the last index for negative trick streams
             float secx = 0;
@@ -658,6 +784,7 @@ static IfsBoolean handle_ForwardTrickFileIndexing(trickInfo *tinfo)
 {
 	entrySet	thisSet;
 	unsigned int entrySetCount = 0;
+    IfsBoolean ret = IfsFalse;
 
 	if(!tinfo)
 	{
@@ -666,30 +793,72 @@ static IfsBoolean handle_ForwardTrickFileIndexing(trickInfo *tinfo)
 	}
 	tinfo->trick_entryset = &thisSet;
 	thisSet.codecType = tinfo->codecType;
+	thisSet.containerType = tinfo->containerType;
 	thisSet.valid = IfsFalse;
-	if(tinfo->ifsHandle->pNdex)
-	{
-		do
-		{
-		    IfsBoolean ret = get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
-			if(ret == IfsTrue)
-			{
-				thisSet.valid = IfsTrue;
-				IfsCopyEntrySetData(tinfo);
-				thisSet.valid = IfsFalse;
-			}
-			entrySetCount++;
-		}	while(!feof(tinfo->ifsHandle->pNdex));
-		// copy the last entry
-		thisSet.valid = IfsTrue;
-		IfsCopyEntrySetData(tinfo);
-	}
-	// read entry set from Index file
 
-	printf("Info: Total entrySet Count: %d\n", entrySetCount);
+    if(tinfo->ifsHandle->pNdex)
+    {
+        do
+        {
+            // Compute VOBU index data (specific to program streams only)
+            if(thisSet.containerType == IfsContainerTypeMpeg2Ps)
+            {
+                // Add vobu indexes to the index files
+                ret = get_vobuIndexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
+            }
+            else
+            {
+                ret = get_indexEntrySet(tinfo->ifsHandle->pNdex, &thisSet);
+            }
+            if(ret == IfsTrue)
+            {
+                thisSet.valid = IfsTrue;
+                IfsCopyEntrySetData(tinfo);
+                thisSet.valid = IfsFalse;
+            }
+            entrySetCount++;
+        }   while(!feof(tinfo->ifsHandle->pNdex));
+        // copy the last entry
+        thisSet.valid = IfsTrue;
+        IfsCopyEntrySetData(tinfo);
+    }
+    // read entry set from Index file
+    printf("Info: Total entrySet Count: %d\n", entrySetCount);
+
 	return IfsTrue;
 }
 
+static IfsBoolean IfsCopyVobuIndexData(trickInfo *tinfo)
+{
+    IfsBoolean retVal = IfsFalse;
+
+    if(tinfo->pFile_ndx)
+    {
+        char temp1[32];
+        float secx;
+        if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
+        {
+            // write vobu index
+            // vobu is between two system headers
+            int numPacks = tinfo->refVobu->pktCount;
+            tinfo->refVobu->vobu_size = (numPacks*PROGRAM_STREAM_PACK_SIZE);
+            secx = IfsConvertToSecs(IfsToSecs(tinfo->refVobu->entry.when, temp1));
+            // The last vobu size cannot be determined from the index info
+            // leave it as 0 as an indication to rygel to use file size to
+            // determine size of last vobu as ---> file_size - last_byte_offset
+            if(tinfo->currentVobu->entry.packWhere == 0)
+                tinfo->refVobu->vobu_size = 0;
+            //((vobu_size > 0) ? vobu_size-1: 0)
+            printf("time = %011.3f byte_offset = %019lld vobu_size = %010lld \n", secx,
+                    tinfo->refVobu->byteOffset, tinfo->refVobu->vobu_size);
+            fprintf(tinfo->pFile_ndx, "S S %011.3f %019lld %010lld %14c\n", secx,
+                    tinfo->refVobu->byteOffset,  tinfo->refVobu->vobu_size, ' ');
+            tinfo->refVobu->byteOffset += tinfo->refVobu->vobu_size;
+        }
+        retVal = IfsTrue;
+    }
+    return retVal;
+}
 
 static IfsBoolean IfsCopyIndexData(trickInfo *tinfo)
 {
@@ -697,69 +866,138 @@ static IfsBoolean IfsCopyIndexData(trickInfo *tinfo)
 
 	if(tinfo->pFile_ndx)
 	{
+
 		char temp1[32];
-
-		// For normal play index file the byte offsets are relative to the
-		// original media file
-       if(tinfo->refIframe->speed == 1)
-     	   tinfo->byteOffset = (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize);
-       //-------------------
-
- 		float secx = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->entry.when, temp1));
+		float secx;
+        if(tinfo->refIframe->speed == 1)
+        {
+            // For normal play index file the byte offsets are relative to the
+            // original media file
+            tinfo->byteOffset = (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize);
+        }
+        //-------------------
+        {
+ 		secx = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->entry.when, temp1));
+        printf("time = %011.3f tinfo->byteOffset = %019lld  tinfo->refIframe->pktCount = %d tinfo->ifsHandle->pktSize = %d\n", secx,
+                tinfo->byteOffset, (int) tinfo->refIframe->pktCount,  (int)tinfo->ifsHandle->pktSize);
 		fprintf(tinfo->pFile_ndx, "V I %011.3f %019lld %010lld %14c\n", secx,
 				tinfo->byteOffset,	tinfo->refIframe->pktCount* tinfo->ifsHandle->pktSize, ' ');
-		retVal = IfsTrue;
+        }
+	    retVal = IfsTrue;
 	}
 	return retVal;
 }
 
-
-
 static IfsBoolean IfsCopyEntrySetData(trickInfo *tinfo)
 {
     char temp1[32]; // IfsToSecs only
-
+    IfsBoolean copyFrameData = IfsFalse;
+    IfsBoolean copyVobuData = IfsFalse;
 	if(tinfo->trick_entryset->valid == IfsTrue)
 	{
-	    tinfo->ifsHandle->entry = tinfo->trick_entryset->entry_IframeB;
+	    {
+	        if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
+	        {
+	            tinfo->currentVobu->entry = tinfo->trick_entryset->entry_sys_hdr_VobuB;
+	            if(tinfo->firstRefVobu == IfsFalse)
+	            {
+	                tinfo->firstRefVobu = IfsTrue;
+	            }
+	            else
+	            {
+	                if(tinfo->trick_speed == 1) // for normal speed, just copy the index data only
+	                {
+	                    printf("Info: tinfo->currentVobu->entry.packWhere: %d tinfo->refVobu->entry.packWhere: %d\n",
+	                            (int)tinfo->currentVobu->entry.packWhere, (int)tinfo->refVobu->entry.packWhere);
+                        tinfo->refVobu->pktCount =  tinfo->currentVobu->entry.packWhere -
+                                    tinfo->refVobu->entry.packWhere;
+	                    IfsCopyVobuIndexData(tinfo);
+	                }
+	                else
+	                    copyVobuData = IfsTrue;
+	            }
+	        }
+            tinfo->ifsHandle->entry = tinfo->trick_entryset->entry_IframeB;
 
-		printf("Info: Next I frame: %ld, packet index: %6ld - time stamp:  %s\n",
-			++tinfo->uIframeNum, tinfo->ifsHandle->entry.realWhere,
-			IfsToSecs(tinfo->ifsHandle->entry.when, temp1));
-		if(tinfo->firstRefIframe == IfsFalse)
-		{
-			tinfo->newTrickFile = IfsTrue;
-			tinfo->firstRefIframe = IfsTrue;
-			tinfo->refIframe->speed = tinfo->trick_speed;
-			tinfo->total_frame_count = 0;
-		}
-		else
-		{
-			if(tinfo->trick_speed == 1) // for normal speed, just copy the index data only
-				IfsCopyIndexData(tinfo);
-			else
-				IfsCopyFrameData(tinfo);
-		}
-		// save this I frame as new Reference frame
-		tinfo->refIframe->entry = tinfo->ifsHandle->entry;
-		tinfo->refIframe->index = 0;
-		tinfo->refIframe->uIframeNum = tinfo->uIframeNum;
-		{	// point the reference I-frame where to SPS or AUD, because these are the entries to be copied along I-frame
-			// I-frame happens after or at the same entry as of AUD and SPS
-			NumPackets whereAUDorSPS = (tinfo->ifsHandle->codecType == IfsCodecTypeH264) ?
-											tinfo->trick_entryset->entry_AUD.realWhere :
-											tinfo->trick_entryset->entry_SPS.realWhere;
-			tinfo->refIframe->pktCount = tinfo->trick_entryset->entry_IframeE.realWhere - whereAUDorSPS;
-			tinfo->refIframe->entry.realWhere = whereAUDorSPS;
-			if(!((IfsCheck_SEQ_PIC(tinfo->codecType, tinfo->trick_entryset->entry_IframeE.what)) & IFS_TEST_FLAG_PUSI))
-				tinfo->refIframe->pktCount++;	// add 1 more packet for partial I frame
-		}
-		printf("\n==============================\n");
-		printf("Info: refIFrame->realWhere: %06ld\n",
-				tinfo->refIframe->entry.realWhere);
-		printf("==============================\n");
+            printf("Info: Next I frame: %ld, packet index: %6ld - time stamp:  %s\n",
+                ++tinfo->uIframeNum, tinfo->ifsHandle->entry.realWhere,
+                IfsToSecs(tinfo->ifsHandle->entry.when, temp1));
+
+            if(tinfo->firstRefIframe == IfsFalse)
+            {
+                tinfo->newTrickFile = IfsTrue;
+                tinfo->firstRefIframe = IfsTrue;
+                tinfo->refIframe->speed = tinfo->trick_speed;
+                tinfo->total_frame_count = 0;
+            }
+            else
+            {
+                if(tinfo->trick_speed == 1) // for normal speed, just copy the index data only
+                    IfsCopyIndexData(tinfo);
+                else
+                    copyFrameData = IfsTrue;
+            }
+	    }
+
+	    if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
+	    {
+	        if(copyVobuData && copyFrameData)
+	            IfsCopyFrameData(tinfo);
+	    }
+	    else
+	    {
+	        if(copyFrameData)
+	            IfsCopyFrameData(tinfo);
+	    }
+
+	    IfsSaveReferenceFrameData(tinfo);
 	}
 	return IfsTrue; // check the return value in this function
+}
+
+static void IfsSaveReferenceFrameData(trickInfo *tinfo)
+{
+    {
+        // save current I frame as new Reference frame
+        tinfo->refIframe->entry = tinfo->ifsHandle->entry;
+        tinfo->refIframe->index = 0;
+        tinfo->refIframe->uIframeNum = tinfo->uIframeNum;
+        {   // point the reference I-frame where to SPS or AUD, because these are the entries to be copied along I-frame
+            // I-frame happens after or at the same entry as of AUD and SPS
+            NumPackets whereAUDorSPS = (tinfo->ifsHandle->codecType == IfsCodecTypeH264) ?
+                                            tinfo->trick_entryset->entry_AUD.realWhere :
+                                            tinfo->trick_entryset->entry_SPS.realWhere;
+            tinfo->refIframe->pktCount = tinfo->trick_entryset->entry_IframeE.realWhere - whereAUDorSPS;
+            tinfo->refIframe->entry.realWhere = whereAUDorSPS;
+            if(!((IfsCheck_SEQ_PIC(tinfo->codecType, tinfo->trick_entryset->entry_IframeE.what)) & IFS_TEST_FLAG_PUSI))
+                tinfo->refIframe->pktCount++;   // add 1 more packet for partial I frame
+        }
+        printf("\n==============================\n");
+        printf("Info: refIFrame->realWhere: %06ld\n",
+                tinfo->refIframe->entry.realWhere);
+        printf("==============================\n");
+        if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
+        {
+            // save the current VOBU as a Reference
+            printf("Info: tinfo->currentVobu->entry.packWhere: %d tinfo->refVobu->entry.packWhere: %d\n",
+                    (int)tinfo->currentVobu->entry.packWhere, (int)tinfo->refVobu->entry.packWhere);
+            if(tinfo->trick_direction == -1)
+            {
+                tinfo->refVobu->pktCount =  tinfo->refVobu->entry.packWhere -
+                        tinfo->currentVobu->entry.packWhere;
+            }
+            else
+            {
+                if(tinfo->trick_speed > 1)
+                {
+                    tinfo->refVobu->pktCount =  tinfo->currentVobu->entry.packWhere -
+                            tinfo->refVobu->entry.packWhere;
+                }
+            }
+
+            tinfo->refVobu->entry = tinfo->currentVobu->entry;
+        }
+    }
 }
 
 
@@ -823,7 +1061,6 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 
 	if(tinfo->refIframe->speed > 1)
 	{
-
 		tinfo->refIframe->timeToNextI =  (tinfo->ifsHandle->entry.when - tinfo->refIframe->entry.when);
 
 		secs = IfsConvertToSecs(IfsToSecs(tinfo->refIframe->timeToNextI, temp1));
@@ -844,6 +1081,10 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 			tinfo->ifsHandle->entry.when = tinfo->refIframe->entry.when;
 			printf("Info: factor is greater than secs, skip this frame\n");
 			repeat_count = 0;
+	        if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
+	        {
+	            tinfo->currentVobu->entry.when = tinfo->refVobu->entry.when;
+	        }
 		}
 		else
 		{
@@ -851,7 +1092,6 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 			repeat_count += round(count);
 		}
 	}
-
 
  	printf("\nReference I frame Info:\n");
 	printf("Frame number = %ld\nPacket index = %ld\nPacket count = %d\nTime stamp = %s\nTimeToNextI = %s\n",
@@ -896,28 +1136,65 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 			unsigned repeat_times = repeat_count;
 			unsigned long pktCount = 0;
 
-			printf("Info: Total packets to copy: %d from packet position: %ld\n", tinfo->refIframe->pktCount, tinfo->refIframe->entry.realWhere);
-
 			while(repeat_times-- > 0)
 			{
-				if(fseek(tinfo->pFile_ts, (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize), SEEK_SET))
-					printf("Error: seek error\n");
-				else
-					pktCount = tinfo->refIframe->pktCount;
+		        if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
+		        {
+                    int numPacks = tinfo->refVobu->pktCount;
+                    long iframe_packet_count = 0;
+                    int64_t i_frame_offset = 0;
+                    int64_t start_offset = tinfo->refVobu->entry.realWhere * tinfo->ifsHandle->pktSize;
+                    // Seek to the correct place in the media file and copy the VOBU
+	                if(fseek(tinfo->pFile_ts, start_offset, SEEK_SET))
+	                    printf("Error: seek error\n");
+	                // This should be number of packs to copy
+	                pktCount = numPacks;
+	                printf("Info: Total packs to copy: %ld from packet position: %ld\n", pktCount, tinfo->refIframe->entry.realWhere);
+	                IfsCopyPackets(tinfo->pFile_ts, tinfo->pFile_tm, numPacks, PROGRAM_STREAM_PACK_SIZE);
+	                printf("Copied %lu packs of size: %d \n",
+	                        (unsigned long)pktCount, PROGRAM_STREAM_PACK_SIZE);
+	                IfsCopyVobuIndexData(tinfo);
+	                IfsCopyIndexData(tinfo);
+	                // For trick files we are only copying the VOBUs and the byte offsets
+	                // should be relative to the newly generated trick file
+                    printf("Info: tinfo->ifsHandle->entry.realWhere: %d tinfo->refVobu->entry.realWhere: %d\n",
+                                    (int)tinfo->ifsHandle->entry.realWhere, (int)tinfo->refVobu->entry.realWhere);
+                    if(tinfo->trick_direction == -1)
+                    {
+                        iframe_packet_count = tinfo->refVobu->entry.realWhere - tinfo->ifsHandle->entry.realWhere;
+                    }
+                    else
+                    {
+                        iframe_packet_count = tinfo->ifsHandle->entry.realWhere - tinfo->refVobu->entry.realWhere;
+                    }
+	                i_frame_offset = iframe_packet_count * tinfo->ifsHandle->pktSize;
+                    printf("Info: i_frame_offset: %lld tinfo->refVobu->vobu_size: %lld\n",
+                                   i_frame_offset, tinfo->refVobu->vobu_size);
+	                tinfo->byteOffset += (i_frame_offset + tinfo->refVobu->vobu_size);
+                    tinfo->refVobu->vobu_size =  numPacks * PROGRAM_STREAM_PACK_SIZE;
+		        }
+		        else
+		        {
+	                if(fseek(tinfo->pFile_ts, (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize), SEEK_SET))
+	                    printf("Error: seek error\n");
 
-				IfsCopyPackets(tinfo->pFile_ts, tinfo->pFile_tm, pktCount, tinfo->ifsHandle->pktSize);
-                printf("Copied %lu packets of size: %lu \n",
-                        (unsigned long)pktCount, (unsigned long)tinfo->ifsHandle->pktSize);
+	                pktCount = tinfo->refIframe->pktCount;
+                    printf("Info: Total packets to copy: %d from packet position: %ld\n", tinfo->refIframe->pktCount, tinfo->refIframe->entry.realWhere);
+
+	                IfsCopyPackets(tinfo->pFile_ts, tinfo->pFile_tm, pktCount, tinfo->ifsHandle->pktSize);
+	                printf("Copied %lu packets of size: %lu \n",
+	                        (unsigned long)pktCount, (unsigned long)tinfo->ifsHandle->pktSize);
+
+	                IfsCopyIndexData(tinfo);
+	                //
+	                // For trick files we are only copying the I-frames and the byte offsets
+	                // should be relative to the newly generated trick file
+	                tinfo->byteOffset += (tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize);
+		        }
 				tinfo->total_frame_count++;
-				//----------------------
-				IfsCopyIndexData(tinfo);
-				//----------------------
-				//
-                // For trick files we are only copying the I-frames and the byte offsets
-                // should be relative to the newly generated trick file
-                tinfo->byteOffset += (tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize);
 			}
 	        // add up pat/pmt byte count to the total for offset calculations
+			// transport stream content only
 	        tinfo->byteOffset  += (tinfo->patByteCount + tinfo->pmtByteCount);
 		}
 	}

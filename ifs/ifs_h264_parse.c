@@ -435,7 +435,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
       				IfsLongLongToString(ifsPts, temp);
       				IfsLongLongToString(ifsHandle->begClockPerContainer/300, temp1);
       				//printf("initial PTS %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
-      				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
+      				ifsHandle->entry.when = 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
         	  }
 
             break;
@@ -829,7 +829,9 @@ IfsBoolean h264_ParsePacket(IfsHandle ifsHandle, IfsPacket * pIfsPacket)
         ParseElementary(ifsHandle, ifsHandle->pktSize, pIfsPacket->bytes);
     }
 
-    return ifsHandle->entry.what & indexerSetting; // any indexed events in this packet?
+    // any indexed events in this packet?
+    return ( ((unsigned long)(ifsHandle->entry.what>>32) & (unsigned long)(indexerSetting>>32))
+            || ((unsigned long)ifsHandle->entry.what & indexerSetting) );
 }
 
 
