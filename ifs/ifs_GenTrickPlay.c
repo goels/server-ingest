@@ -85,6 +85,7 @@ static IfsBoolean IfsCopyIndexData(trickInfo *tinfo);
 static IfsBoolean IfsCopyVobuIndexData(trickInfo *tinfo);
 static IfsBoolean getPatPmtPackets(streamInfo *strmInfo, trickInfo *tinfo);
 static void IfsSaveReferenceFrameData(trickInfo *tinfo);
+static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo);
 
 //-------------------------------------------------------
 
@@ -352,7 +353,13 @@ IfsBoolean generate_trickfile(char *indexfilename, streamInfo *strmInfo, int tri
 		if(tinfo.trick_direction == -1)
 			handle_ReverseTrickFileIndexing(&tinfo);
 		else
-			handle_ForwardTrickFileIndexing(&tinfo);
+		{
+		    if(tinfo.trick_speed ==  1)
+		        // This method indexes all frame types (I, B, P as well as VOBUs for program streams)
+		        generate_normalPlayIndexFile(&tinfo);
+		    else
+			    handle_ForwardTrickFileIndexing(&tinfo);
+		}
 	}
     else
     {
@@ -407,35 +414,147 @@ static unsigned IfsCheck_SEQ_PIC(IfsCodecType codecType, ullong ifsIndex)
 		return i;
 }
 
-
 static IfsBoolean get_indexEntry(FILE *fpIndex, IfsIndexEntry *iEntry, unsigned long long flags)
 {
+    IfsBoolean bRead = IfsFalse;
+
+    if(!(fpIndex) || !(iEntry))
+    {
+        printf("Error: input parameter pointer is NULL\n");
+        return IfsFalse;
+    }
+    iEntry->what = 0;
+    iEntry->realWhere = 0;
+
+    // read entries until matching with flags
+    do
+    {
+        if(iEntry->what & flags)
+        {
+            bRead = IfsTrue;
+            break;
+        }
+    } while (fread(iEntry, 1, sizeof(IfsIndexEntry), fpIndex) == sizeof(IfsIndexEntry));
+    return bRead;
+}
+
+static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo)
+{
 	IfsBoolean bRead = IfsFalse;
+    NumEntries numEntries = 0;
+    unsigned long long ifsIndex = 0;
+    int64_t frameSize = 0;
+    int64_t vobuSize = 0;
+    int64_t vobuOffset = 0;
+    IfsIndexEntry iEntry = {0, 0, 0, 0, 0, 0};
+    printf("Opening index file...\n");
+    if (tinfo->ifsHandle->pNdex)
+    {
+        if (fread(&iEntry, 1, sizeof(IfsIndexEntry),
+                tinfo->ifsHandle->pNdex) == sizeof(IfsIndexEntry))
+        ;
+    }
+    else
+    {
+        printf("Error opening/reading the index file!\n");
+        return IfsFalse;
+    }
 
-	if(!(fpIndex) || !(iEntry))
-	{
-		printf("Error: input parameter pointer is NULL\n");
-		return IfsFalse;
-	}
-	iEntry->what = 0;
-	iEntry->realWhere = 0;
+    do
+    {
+        char temp1[32]; // IfsToSecs only
+        float secx;
+        ifsIndex =  iEntry.what;
+        if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
+        {
+            if(ifsIndex & IfsIndexStartSysHeader)
+            {
+                NumPackets numPacks = (iEntry.packWhere-1) < 0 ? 0 : iEntry.packWhere-1;
+                fprintf(tinfo->pFile_ndx, "S S ");
+                secx = IfsConvertToSecs(IfsToSecs(iEntry.when, temp1));
+                vobuOffset = numPacks * PROGRAM_STREAM_PACK_SIZE;
+                printf("time = %011.3f tinfo->byteOffset = %019lld \n", secx,
+                        vobuOffset);
+                fprintf(tinfo->pFile_ndx, "%011.3f %019lld %010lld %14c\n", secx, vobuOffset, vobuSize, ' ');
+            }
+        }
+        // Index frame type, offset etc.
+        {
+            switch(tinfo->codecType)
+            {
+                case IfsCodecTypeH264:
+                {
+                    // index the frame type
+                    if (ifsIndex & IfsIndexPictureI)
+                    {
+                        fprintf(tinfo->pFile_ndx, "V I ");
+                    }
+                    else if (ifsIndex & IfsIndexPictureP)
+                    {
+                        fprintf(tinfo->pFile_ndx, "V P ");
+                    }
+                    else if (ifsIndex & IfsIndexPictureB)
+                    {
+                        fprintf(tinfo->pFile_ndx, "V B ");
+                    }
+                    // index the byte offset and time entry values
+                    if( (ifsIndex & IfsIndexPictureI) ||
+                        (ifsIndex & IfsIndexPictureP) ||
+                        (ifsIndex & IfsIndexPictureB) )
+                    {
+                        secx = IfsConvertToSecs(IfsToSecs(iEntry.when, temp1));
+                        frameSize = iEntry.realWhere * tinfo->ifsHandle->pktSize;
+                        tinfo->byteOffset = (iEntry.realWhere * tinfo->ifsHandle->pktSize);
+                        printf("time = %011.3f tinfo->byteOffset = %019lld  %010lld \n", secx,
+                                tinfo->byteOffset, frameSize);
+                        fprintf(tinfo->pFile_ndx, "%011.3f %019lld %010lld %14c\n", secx,  tinfo->byteOffset, frameSize, ' ');
+                    }
+                }
+                    break;
+                case IfsCodecTypeH262:
+                {
+                    if(ifsIndex & IfsIndexStartPicture)
+                    {
+                        switch (ifsIndex & IfsIndexStartPicture)
+                        {
+                            case IfsIndexStartPicture0:
+                                fprintf(tinfo->pFile_ndx, "V I ");
+                                break;
+                            case IfsIndexStartPicture1:
+                                fprintf(tinfo->pFile_ndx, "V P ");
+                                break;
+                            case IfsIndexStartPicture:
+                                fprintf(tinfo->pFile_ndx, "V B ");
+                                break;
+                            default:
+                                break;
+                        }
+                        {
+                            secx = IfsConvertToSecs(IfsToSecs(iEntry.when, temp1));
+                            frameSize = iEntry.realWhere * tinfo->ifsHandle->pktSize;
+                            tinfo->byteOffset = (iEntry.realWhere * tinfo->ifsHandle->pktSize);
+                            printf("time = %011.3f tinfo->byteOffset = %019lld  %010lld \n", secx,
+                                    tinfo->byteOffset, frameSize);
+                            fprintf(tinfo->pFile_ndx, "%011.3f %019lld %010lld %14c\n", secx,  tinfo->byteOffset, frameSize, ' ');
+                        }
+                    }
+                }
+                    break;
+                default:
+                    break;
+            }
+        }
+        numEntries++;
+    } while (fread(&iEntry, 1, sizeof(IfsIndexEntry),
+            tinfo->ifsHandle->pNdex) == sizeof(IfsIndexEntry));
 
-	// read entries until matching with flags
-	do
-	{
-		if(iEntry->what & flags)
-		{
-			bRead = IfsTrue;
-			break;
-		}
-	} while (fread(iEntry, 1, sizeof(IfsIndexEntry), fpIndex) == sizeof(IfsIndexEntry));
-	return bRead;
+    return bRead;
 }
 
 static IfsBoolean get_indexEntrySet(FILE *fpIndex, entrySet *iEntrySet)
 {
     IfsBoolean result = IfsFalse;
-    IfsIndexEntry entry = {0, 0, 0, 0};
+    IfsIndexEntry entry = {0, 0, 0, 0, 0, 0};
     unsigned long foundWhat = 0;
 
     if(!(fpIndex) || !(iEntrySet))
