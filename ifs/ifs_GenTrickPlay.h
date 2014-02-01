@@ -113,7 +113,7 @@ typedef struct _refIframeEntery
 
 typedef struct _refVobuEntry
 {
-    unsigned long  index;
+    unsigned long long  index;
     unsigned long  uIframeNum;
     IfsIndexEntry    entry;
     unsigned        pktCount;

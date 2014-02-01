@@ -86,7 +86,9 @@ static IfsBoolean IfsCopyVobuIndexData(trickInfo *tinfo);
 static IfsBoolean getPatPmtPackets(streamInfo *strmInfo, trickInfo *tinfo);
 static void IfsSaveReferenceFrameData(trickInfo *tinfo);
 static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo);
-
+static void write_indexEntries(FILE *index_file, char *frame_type, IfsClock time, int64_t byte_offset, int64_t frame_size);
+static void get_frameTypeH262(unsigned long long index, char* frame_type);
+static void get_frameTypeH264(unsigned long long index, char* frame_type);
 //-------------------------------------------------------
 
 
@@ -447,6 +449,8 @@ static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo)
     int64_t vobuSize = 0;
     int64_t vobuOffset = 0;
     IfsIndexEntry iEntry = {0, 0, 0, 0, 0, 0};
+    char frame_type[256];
+
     printf("Opening index file...\n");
     if (tinfo->ifsHandle->pNdex)
     {
@@ -462,20 +466,30 @@ static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo)
 
     do
     {
-        char temp1[32]; // IfsToSecs only
-        float secx;
         ifsIndex =  iEntry.what;
+        // Index vobu offsets (for program stream only)
         if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
         {
             if(ifsIndex & IfsIndexStartSysHeader)
             {
-                NumPackets numPacks = (iEntry.packWhere-1) < 0 ? 0 : iEntry.packWhere-1;
-                fprintf(tinfo->pFile_ndx, "S S ");
-                secx = IfsConvertToSecs(IfsToSecs(iEntry.when, temp1));
-                vobuOffset = numPacks * PROGRAM_STREAM_PACK_SIZE;
-                printf("time = %011.3f tinfo->byteOffset = %019lld \n", secx,
-                        vobuOffset);
-                fprintf(tinfo->pFile_ndx, "%011.3f %019lld %010lld %14c\n", secx, vobuOffset, vobuSize, ' ');
+                if(tinfo->firstRefVobu == IfsFalse)
+                {
+                    tinfo->firstRefVobu = IfsTrue;
+                }
+                else
+                {
+                    if(tinfo->refVobu->index & IfsIndexStartSysHeader)
+                    {
+                        NumPackets numPacks = (tinfo->refVobu->entry.packWhere-1) < 0 ? 0 : tinfo->refVobu->entry.packWhere-1;
+                        strcpy(frame_type, "S S ");
+                        vobuOffset = numPacks * PROGRAM_STREAM_PACK_SIZE;
+                        tinfo->refVobu->pktCount =  iEntry.packWhere - tinfo->refVobu->entry.packWhere;
+                        vobuSize = tinfo->refVobu->pktCount * PROGRAM_STREAM_PACK_SIZE;
+                        write_indexEntries(tinfo->pFile_ndx, frame_type, tinfo->refVobu->entry.when, vobuOffset, vobuSize);
+                    }
+                }
+                tinfo->refVobu->entry = iEntry;
+                tinfo->refVobu->index = ifsIndex;
             }
         }
         // Index frame type, offset etc.
@@ -484,30 +498,26 @@ static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo)
             {
                 case IfsCodecTypeH264:
                 {
-                    // index the frame type
-                    if (ifsIndex & IfsIndexPictureI)
-                    {
-                        fprintf(tinfo->pFile_ndx, "V I ");
-                    }
-                    else if (ifsIndex & IfsIndexPictureP)
-                    {
-                        fprintf(tinfo->pFile_ndx, "V P ");
-                    }
-                    else if (ifsIndex & IfsIndexPictureB)
-                    {
-                        fprintf(tinfo->pFile_ndx, "V B ");
-                    }
-                    // index the byte offset and time entry values
                     if( (ifsIndex & IfsIndexPictureI) ||
                         (ifsIndex & IfsIndexPictureP) ||
                         (ifsIndex & IfsIndexPictureB) )
                     {
-                        secx = IfsConvertToSecs(IfsToSecs(iEntry.when, temp1));
-                        frameSize = iEntry.realWhere * tinfo->ifsHandle->pktSize;
-                        tinfo->byteOffset = (iEntry.realWhere * tinfo->ifsHandle->pktSize);
-                        printf("time = %011.3f tinfo->byteOffset = %019lld  %010lld \n", secx,
-                                tinfo->byteOffset, frameSize);
-                        fprintf(tinfo->pFile_ndx, "%011.3f %019lld %010lld %14c\n", secx,  tinfo->byteOffset, frameSize, ' ');
+                        if(tinfo->firstRefIframe == IfsFalse)
+                        {
+                            tinfo->firstRefIframe = IfsTrue;
+                        }
+                        else
+                        {
+                            //frame type
+                            get_frameTypeH264(tinfo->refIframe->index, frame_type);
+                            //byte offset and time entry values
+                            tinfo->byteOffset = (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize);
+                            tinfo->refIframe->pktCount =  iEntry.realWhere - tinfo->refIframe->entry.realWhere;
+                            frameSize = tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize;
+                            write_indexEntries(tinfo->pFile_ndx, frame_type, tinfo->refIframe->entry.when, tinfo->byteOffset, frameSize);
+                        }
+                        tinfo->refIframe->entry = iEntry;
+                        tinfo->refIframe->index = ifsIndex;
                     }
                 }
                     break;
@@ -515,28 +525,20 @@ static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo)
                 {
                     if(ifsIndex & IfsIndexStartPicture)
                     {
-                        switch (ifsIndex & IfsIndexStartPicture)
+                        if(tinfo->firstRefIframe == IfsFalse)
                         {
-                            case IfsIndexStartPicture0:
-                                fprintf(tinfo->pFile_ndx, "V I ");
-                                break;
-                            case IfsIndexStartPicture1:
-                                fprintf(tinfo->pFile_ndx, "V P ");
-                                break;
-                            case IfsIndexStartPicture:
-                                fprintf(tinfo->pFile_ndx, "V B ");
-                                break;
-                            default:
-                                break;
+                            tinfo->firstRefIframe = IfsTrue;
                         }
+                        else
                         {
-                            secx = IfsConvertToSecs(IfsToSecs(iEntry.when, temp1));
-                            frameSize = iEntry.realWhere * tinfo->ifsHandle->pktSize;
-                            tinfo->byteOffset = (iEntry.realWhere * tinfo->ifsHandle->pktSize);
-                            printf("time = %011.3f tinfo->byteOffset = %019lld  %010lld \n", secx,
-                                    tinfo->byteOffset, frameSize);
-                            fprintf(tinfo->pFile_ndx, "%011.3f %019lld %010lld %14c\n", secx,  tinfo->byteOffset, frameSize, ' ');
+                            get_frameTypeH262(tinfo->refIframe->index, frame_type);
+                            tinfo->byteOffset = (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize);
+                            tinfo->refIframe->pktCount =  iEntry.realWhere - tinfo->refIframe->entry.realWhere;
+                            frameSize = tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize;
+                            write_indexEntries(tinfo->pFile_ndx, frame_type, tinfo->refIframe->entry.when, tinfo->byteOffset, frameSize);
                         }
+                        tinfo->refIframe->entry = iEntry;
+                        tinfo->refIframe->index = ifsIndex;
                     }
                 }
                     break;
@@ -548,7 +550,89 @@ static IfsBoolean generate_normalPlayIndexFile(trickInfo *tinfo)
     } while (fread(&iEntry, 1, sizeof(IfsIndexEntry),
             tinfo->ifsHandle->pNdex) == sizeof(IfsIndexEntry));
 
+    // Write the last entries
+    if(tinfo->refVobu->index & IfsIndexStartSysHeader)
+    {
+        NumPackets numPacks = (tinfo->refVobu->entry.packWhere-1) < 0 ? 0 : tinfo->refVobu->entry.packWhere-1;
+        strcpy(frame_type, "S S ");
+        vobuOffset = numPacks * PROGRAM_STREAM_PACK_SIZE;
+        tinfo->refVobu->pktCount =  iEntry.packWhere - tinfo->refVobu->entry.packWhere;
+        vobuSize = tinfo->refVobu->pktCount * PROGRAM_STREAM_PACK_SIZE;
+        write_indexEntries(tinfo->pFile_ndx, frame_type, tinfo->refVobu->entry.when, vobuOffset, vobuSize);
+    }
+    switch(tinfo->codecType)
+    {
+        case IfsCodecTypeH264:
+            if( (tinfo->refIframe->index & IfsIndexPictureI) ||
+                (tinfo->refIframe->index & IfsIndexPictureP) ||
+                (tinfo->refIframe->index & IfsIndexPictureB) )
+            {
+                get_frameTypeH264(tinfo->refIframe->index, frame_type);
+                tinfo->byteOffset = (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize);
+                tinfo->refIframe->pktCount =  iEntry.realWhere - tinfo->refIframe->entry.realWhere;
+                frameSize = tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize;
+                write_indexEntries(tinfo->pFile_ndx, frame_type, tinfo->refIframe->entry.when, tinfo->byteOffset, frameSize);
+            }
+            break;
+        case IfsCodecTypeH262:
+            if(tinfo->refIframe->index & IfsIndexStartPicture)
+            {
+                get_frameTypeH262(tinfo->refIframe->index, frame_type);
+                tinfo->byteOffset = (tinfo->refIframe->entry.realWhere * tinfo->ifsHandle->pktSize);
+                tinfo->refIframe->pktCount =  iEntry.realWhere - tinfo->refIframe->entry.realWhere;
+                frameSize = tinfo->refIframe->pktCount * tinfo->ifsHandle->pktSize;
+                write_indexEntries(tinfo->pFile_ndx, frame_type, tinfo->refIframe->entry.when, tinfo->byteOffset, frameSize);
+            }
+            break;
+        default:
+            break;
+    }
     return bRead;
+}
+
+static void write_indexEntries(FILE *index_file, char *frame_type, IfsClock time, int64_t byte_offset, int64_t frame_size)
+{
+    char temp1[32]; // IfsToSecs only
+    float secx;
+    fprintf(index_file, "%s", frame_type);
+    secx = IfsConvertToSecs(IfsToSecs(time, temp1));
+    //printf("time = %011.3f byteOffset = %019lld  frameSize = %010lld \n", secx,
+    //        byte_offset, frameSize);
+    fprintf(index_file, "%011.3f %019lld %010lld %14c\n", secx,  byte_offset, frame_size, ' ');
+}
+
+static void get_frameTypeH262(unsigned long long index, char* frame_type)
+{
+    switch (index & IfsIndexStartPicture)
+    {
+        case IfsIndexStartPicture0:
+            strcpy(frame_type, "V I ");
+            break;
+        case IfsIndexStartPicture1:
+            strcpy(frame_type, "V P ");
+            break;
+        case IfsIndexStartPicture:
+            strcpy(frame_type, "V B ");
+            break;
+        default:
+            break;
+    }
+}
+
+static void get_frameTypeH264(unsigned long long index, char* frame_type)
+{
+    if (index & IfsIndexPictureI)
+    {
+        strcpy(frame_type, "V I ");
+    }
+    else if (index & IfsIndexPictureP)
+    {
+        strcpy(frame_type, "V P ");
+    }
+    else if (index & IfsIndexPictureB)
+    {
+        strcpy(frame_type, "V B ");
+    }
 }
 
 static IfsBoolean get_indexEntrySet(FILE *fpIndex, entrySet *iEntrySet)

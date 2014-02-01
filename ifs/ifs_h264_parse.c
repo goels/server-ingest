@@ -532,7 +532,7 @@ static void ParseElementary(IfsHandle ifsHandle, const unsigned char pdeLen,
 				IfsLongLongToString(ifsPts, temp);
 				IfsLongLongToString(ifsHandle->begClockPerContainer/300, temp1);
 			//	printf("PTS  %s PCR %s Diff:%lld\n", temp, temp1, (ifsPts - ifsHandle->begClockPerContainer/300)/90000 );
-				ifsHandle->entry.when = ifsHandle->begClock + 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
+				ifsHandle->entry.when = 100000*(ifsPts - ifsHandle->begClockPerContainer/300)/9;
 			}
 			last_pts = ifsPts;
 			ifsHandle->ifsState = IfsStateInitial;
