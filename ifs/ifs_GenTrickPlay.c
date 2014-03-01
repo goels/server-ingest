@@ -1186,8 +1186,7 @@ static void IfsSaveReferenceFrameData(trickInfo *tinfo)
                     (int)tinfo->currentVobu->entry.packWhere, (int)tinfo->refVobu->entry.packWhere);
             if(tinfo->trick_direction == -1)
             {
-                tinfo->refVobu->pktCount =  tinfo->refVobu->entry.packWhere -
-                        tinfo->currentVobu->entry.packWhere;
+                // extract the pack count when we have a valid refVobu
             }
             else
             {
@@ -1343,6 +1342,10 @@ static IfsBoolean IfsCopyFrameData(trickInfo *tinfo)
 			{
 		        if(tinfo->containerType == IfsContainerTypeMpeg2Ps)
 		        {
+		            if(tinfo->trick_direction == -1)
+                    {
+		                tinfo->refVobu->pktCount =  tinfo->refVobu->entry.packWhere - tinfo->currentVobu->entry.packWhere;
+                    }
                     int numPacks = tinfo->refVobu->pktCount;
                     long iframe_packet_count = 0;
                     int64_t i_frame_offset = 0;
